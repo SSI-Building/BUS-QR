@@ -67,19 +67,14 @@
 
     #qrcode {
         margin-top: 25px;
-        background: #fff;
-        padding: 25px;
+        background: #ffffff;     /* กรอบขาว */
+        padding: 20px;           /* ขอบรอบ QR */
         border-radius: 12px;
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
         display: none;
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        transition: all 0.3s ease;
-    }
-
-    #qrcode canvas {
-        margin-bottom: 10px;
     }
 
     .btn svg {
@@ -109,11 +104,16 @@
 
     <button class="btn" onclick="clearQR()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-        Delate
+        Delete
     </button>
 
-    <button class="btn" id="downloadBtn" onclick="downloadQR()" style="display:none;">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 20h14v-2H5v2zm7-18L5.33 9h3.67v4h4V9h3.67L12 2z"/></svg>
+      <button class="btn" id="downloadBtn" onclick="downloadQR()" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <!-- ลูกศรชี้ลง -->
+            <path d="M12 16l4-4h-3V4h-2v8H8l4 4z"/>
+            <!-- ขีดด้านล่าง -->
+            <rect x="6" y="18" width="12" height="2" rx="1"/>
+        </svg>
         Download
     </button>
 </div>
@@ -136,14 +136,17 @@ function generateQR() {
         return;
     }
 
+    // ล้าง container
     qrContainer.innerHTML = "";
+
+    // สร้าง QR Code ลงใน div
     qr = new QRCode(qrContainer, {
         text: link,
         width: 220,
         height: 220,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
     });
 
     qrContainer.style.display = "flex";
@@ -152,20 +155,36 @@ function generateQR() {
 
 function clearQR() {
     document.getElementById('linkInput').value = "";
-    document.getElementById('qrcode').style.display = "none";
-    document.getElementById('qrcode').innerHTML = "";
+    const qrContainer = document.getElementById('qrcode');
+    qrContainer.style.display = "none";
+    qrContainer.innerHTML = "";
     document.getElementById('downloadBtn').style.display = "none";
 }
 
 function downloadQR() {
     const qrContainer = document.getElementById('qrcode');
-    const canvas = qrContainer.querySelector('canvas');
-    if(canvas) {
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL("image/png");
-        link.download = 'qrcode.png';
-        link.click();
-    }
+    const qrCanvas = qrContainer.querySelector('canvas');
+    if(!qrCanvas) return;
+
+    const border = 20; // กำหนดขอบขาว
+    const size = qrCanvas.width;
+    const canvas = document.createElement('canvas');
+    canvas.width = size + border*2;
+    canvas.height = size + border*2;
+    const ctx = canvas.getContext('2d');
+
+    // วาดพื้นหลังขาว
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // วาง QR Code ลงตรงกลาง
+    ctx.drawImage(qrCanvas, border, border);
+
+    // ดาวน์โหลด
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL("image/png");
+    link.download = 'qrcode.png';
+    link.click();
 }
 </script>
 
