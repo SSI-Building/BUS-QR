@@ -3,60 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Location Audit</title>
+<title>QR + Location Checker</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body {
-    font-family: "Prompt", sans-serif;
-    background: #f4f6f9;
-    text-align: center;
-    padding: 20px;
-}
+body { font-family:sans-serif; text-align:center; background:#f4f6f9; }
+#reader { width:300px; margin:auto; }
 .card {
-    background: #fff;
-    padding: 20px;
-    border-radius: 15px;
-    max-width: 500px;
-    margin: auto;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    background:#fff; padding:20px; margin:20px auto;
+    border-radius:15px; max-width:400px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.1);
 }
-.status { font-size: 18px; margin-top: 10px; font-weight: bold; }
-.ok { color: green; }
-.bad { color: red; }
-.warn { color: orange; }
-button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 10px;
-    background: #007bff;
-    color: #fff;
-    font-size: 16px;
-}
+.ok { color:green; font-weight:bold; }
+.bad { color:red; font-weight:bold; }
+.warn { color:orange; font-weight:bold; }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-    <h2>📍 ตรวจสอบพื้นที่</h2>
+<h2>📷 สแกน QR เพื่อตรวจสอบพื้นที่</h2>
 
-    <p id="place">กำลังโหลด...</p>
+<div id="reader"></div>
+
+<div class="card">
+    <p id="place">รอสแกน...</p>
     <p id="distance"></p>
     <p id="accuracy"></p>
-    <div id="status" class="status"></div>
-
-    <input type="file" id="photo" accept="image/*" capture="environment">
-
-    <button id="btnSubmit" onclick="submitData()">ส่งข้อมูล</button>
-
-    <p id="result"></p>
+    <p id="status"></p>
 </div>
 
 <script>
 
-// ===== DATABASE (ครบ) =====
+// ===== DATABASE =====
 const locations = [
 { name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225348, lng: 99.538782, url: "chkL1stX9Q2.html" },
 { name: "โรงจอดรถหน้าโรงงาน", lat: 11.225717, lng: 99.538858, url: "001QWER.html" },
@@ -95,109 +75,88 @@ const locations = [
 { name: "WCE", lat: 11.23656, lng: 99.53628, url: "chkL9stX9Q3.html" }
 ];
 
-// ===== หา location =====
-const currentPage = window.location.href;
-const place = locations.find(loc => currentPage.includes(loc.url));
-
-let userLat, userLng, distance = 999;
-
-document.getElementById("place").innerText =
-    place ? "📍 " + place.name : "❌ ไม่พบจุด";
-
 // ===== สูตรระยะ =====
 function getDistance(lat1, lon1, lat2, lon2) {
     const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI/180;
-    const dLon = (lon2 - lon1) * Math.PI/180;
+    const dLat = (lat2-lat1)*Math.PI/180;
+    const dLon = (lon2-lon1)*Math.PI/180;
 
-    const a =
-        Math.sin(dLat/2)**2 +
-        Math.cos(lat1*Math.PI/180) *
-        Math.cos(lat2*Math.PI/180) *
-        Math.sin(dLon/2)**2;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1*Math.PI/180) *
+              Math.cos(lat2*Math.PI/180) *
+              Math.sin(dLon/2)**2;
 
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 }
 
-// ===== GPS =====
-navigator.geolocation.getCurrentPosition(
-function(pos){
+// ===== หลังสแกน QR =====
+function onScanSuccess(decodedText) {
 
-    const acc = pos.coords.accuracy;
+    const place = locations.find(loc => decodedText.includes(loc.url));
 
-    document.getElementById("accuracy").innerText =
-        "Accuracy: " + acc.toFixed(0) + " m";
-
-    if (acc > 30) {
-        document.getElementById("status").innerText = "⚠️ GPS ไม่แม่น";
-        document.getElementById("status").className = "warn";
+    if (!place) {
+        document.getElementById("place").innerText = "❌ ไม่รู้จัก QR นี้";
         return;
     }
 
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
+    document.getElementById("place").innerText = "📍 " + place.name;
 
-    distance = getDistance(userLat, userLng, place.lat, place.lng);
+    // 📍 ดึง GPS
+    navigator.geolocation.getCurrentPosition(
+    function(pos){
 
-    document.getElementById("distance").innerText =
-        "ระยะ: " + distance.toFixed(2) + " เมตร";
+        const acc = pos.coords.accuracy;
+        const userLat = pos.coords.latitude;
+        const userLng = pos.coords.longitude;
 
-    if (distance <= 20) {
-        document.getElementById("status").innerText = "✅ อยู่ในพื้นที่";
-        document.getElementById("status").className = "ok";
-    } else {
+        document.getElementById("accuracy").innerText =
+            "Accuracy: " + acc.toFixed(0) + " m";
+
+        if (acc > 30) {
+            document.getElementById("status").innerText = "⚠️ GPS ไม่แม่น";
+            document.getElementById("status").className = "warn";
+            return;
+        }
+
+        const distance = getDistance(userLat, userLng, place.lat, place.lng);
+
+        document.getElementById("distance").innerText =
+            "ระยะ: " + distance.toFixed(2) + " m";
+
+        if (distance <= 20) {
+            document.getElementById("status").innerText = "✅ อยู่ในพื้นที่";
+            document.getElementById("status").className = "ok";
+        } else {
+            document.getElementById("status").innerText =
+                "❌ นอกพื้นที่ (" + distance.toFixed(0) + " m)";
+            document.getElementById("status").className = "bad";
+        }
+
+    },
+    function(){
         document.getElementById("status").innerText =
-            "❌ นอกพื้นที่ (" + distance.toFixed(0) + " m)";
-        document.getElementById("status").className = "bad";
+            "❌ ต้องเปิด Location";
+    },
+    {
+        enableHighAccuracy:true,
+        timeout:10000,
+        maximumAge:0
+    });
+
+}
+
+// ===== เปิดกล้อง =====
+const html5QrCode = new Html5Qrcode("reader");
+
+Html5Qrcode.getCameras().then(devices => {
+    if (devices && devices.length) {
+        html5QrCode.start(
+            devices[0].id,
+            { fps: 10, qrbox: 250 },
+            onScanSuccess
+        );
     }
-
-},
-function(){
-    document.getElementById("status").innerText =
-        "❌ ต้องเปิด Location";
-},
-{
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 0
-}
-);
-
-// ===== ส่งข้อมูล =====
-function submitData(){
-
-    const file = document.getElementById("photo").files[0];
-    const btn = document.getElementById("btnSubmit");
-
-    if (!file) return alert("📸 ถ่ายรูปก่อน");
-    if (distance > 20) return alert("❌ อยู่นอกพื้นที่");
-
-    btn.disabled = true;
-
-    const reader = new FileReader();
-
-    reader.onload = function(){
-
-        fetch("YOUR_GOOGLE_SCRIPT_URL", {
-            method: "POST",
-            body: JSON.stringify({
-                location: place.name,
-                lat: userLat,
-                lng: userLng,
-                distance: distance,
-                accuracy: document.getElementById("accuracy").innerText,
-                time: new Date().toLocaleString(),
-                image: reader.result
-            })
-        })
-        .then(() => {
-            document.getElementById("result").innerText = "✅ บันทึกสำเร็จ";
-        });
-
-    };
-
-    reader.readAsDataURL(file);
-}
+});
 
 </script>
 
