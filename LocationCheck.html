@@ -2,23 +2,74 @@
 <html>
   <head>
     <base target="_top">
+    <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #0d1117; color: #c9d1d9; }
-      #reader { width: 100%; max-width: 500px; margin: auto; border: 2px solid #58a6ff; border-radius: 12px; background: #161b22; }
-      #result { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; display: none; line-height: 1.6; }
-      .success { background: #238636; color: white; border: 1px solid #2ea043; }
-      .error { background: #da3633; color: white; border: 1px solid #f85149; }
-      .warning { background: #d29922; color: black; }
+      :root { --neon-blue: #00f2ff; --neon-green: #39ff14; --neon-red: #ff3131; }
+      body { 
+        font-family: 'Segoe UI', sans-serif; 
+        background: #0b0e14; 
+        color: #e6edf3; 
+        margin: 0; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        min-height: 100vh;
+      }
+      h2 { color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); margin-top: 20px; }
+      
+      #reader-container {
+        width: 90%;
+        max-width: 500px;
+        border: 2px solid var(--neon-blue);
+        box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+        border-radius: 15px;
+        overflow: hidden;
+        background: #000;
+        position: relative;
+      }
+      
+      #reader { width: 100%; }
+
+      #result {
+        width: 85%;
+        max-width: 480px;
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        text-align: center;
+        display: none;
+        animation: fadeIn 0.5s ease-in-out;
+      }
+
+      .success { border: 2px solid var(--neon-green); background: rgba(57, 255, 20, 0.1); color: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+      .error { border: 2px solid var(--neon-red); background: rgba(255, 49, 49, 0.1); color: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
+      .warning { border: 2px solid #ffcc00; background: rgba(255, 204, 0, 0.1); color: #ffcc00; box-shadow: 0 0 10px #ffcc00; }
+
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      
+      /* ปรับแต่งปุ่มภายใน library ให้กลมกลืน */
+      #reader button {
+        background: var(--neon-blue);
+        border: none;
+        padding: 10px 20px;
+        color: black;
+        font-weight: bold;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 10px;
+      }
     </style>
   </head>
   <body>
-    <h2>QR Installation Verifier</h2>
-    <div id="reader"></div>
+    <h2>SCANNER PRO</h2>
+    <div id="reader-container">
+      <div id="reader"></div>
+    </div>
     <div id="result"></div>
 
     <script>
-      // ข้อมูลตำแหน่งที่คุณต้องการฝังไว้
       const locations = [
 { name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225348, lng: 99.538782, url: "chkL1stX9Q2.html" },
 { name: "โรงจอดรถหน้าโรงงาน", lat: 11.225717, lng: 99.538858, url: "001QWER.html" },
@@ -58,18 +109,24 @@
       ];
 
       let userCoords = { lat: 0, lon: 0 };
+      const html5QrCode = new Html5Qrcode("reader");
 
-      // ดึงตำแหน่ง GPS ของผู้ใช้งาน
+      // ดึง GPS
       navigator.geolocation.getCurrentPosition((pos) => {
         userCoords.lat = pos.coords.latitude;
         userCoords.lon = pos.coords.longitude;
-      }, (err) => alert("กรุณาเปิด GPS เพื่อตรวจสอบตำแหน่ง"), { enableHighAccuracy: true });
+      }, (err) => console.log("Waiting for GPS..."), { enableHighAccuracy: true });
+
+      // ฟังก์ชันเริ่มกล้องอัตโนมัติ
+      const startCamera = () => {
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+      };
 
       function onScanSuccess(decodedText) {
         const resultDiv = document.getElementById('result');
         resultDiv.style.display = 'block';
 
-        // หาว่าใน URL ที่สแกนได้ มีชื่อไฟล์ตัวไหนในลิสต์บ้าง
         const match = locations.find(item => decodedText.includes(item.url));
 
         if (match) {
@@ -77,31 +134,29 @@
           
           if (distance <= 20) {
             resultDiv.className = "success";
-            resultDiv.innerHTML = `✅ ตรวจสอบสำเร็จ<br>สถานที่: ${match.name}<br>ระยะห่าง: ${distance.toFixed(2)} เมตร`;
+            resultDiv.innerHTML = `<strong>SUCCESS</strong><br>📍 ${match.name}<br>Dist: ${distance.toFixed(2)} m.`;
           } else {
             resultDiv.className = "warning";
-            resultDiv.innerHTML = `⚠️ ตำแหน่งไม่ถูกต้อง!<br>QR นี้คือจุด: ${match.name}<br>แต่คุณอยู่ห่างออกไปถึง: ${distance.toFixed(2)} เมตร`;
+            resultDiv.innerHTML = `<strong>WRONG LOCATION</strong><br>Target: ${match.name}<br>Away: ${distance.toFixed(2)} m.`;
           }
         } else {
           resultDiv.className = "error";
-          resultDiv.innerHTML = "❌ ไม่พบข้อมูล QR นี้ในระบบตรวจสอบ";
+          resultDiv.innerHTML = "<strong>INVALID QR</strong><br>Link not found in database.";
         }
       }
 
-      // ฟังก์ชันคำนวณระยะทาง
       function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // รัศมีโลก (เมตร)
+        const R = 6371e3;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
                   Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                   Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
       }
 
-      const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-      html5QrcodeScanner.render(onScanSuccess);
+      // รันกล้องทันทีที่โหลดเสร็จ
+      window.onload = startCamera;
     </script>
   </body>
 </html>
