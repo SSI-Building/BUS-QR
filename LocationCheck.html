@@ -1,58 +1,25 @@
 <!DOCTYPE html>
-<html lang="th">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR + Location Checker</title>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; background: #0d1117; color: #c9d1d9; }
+      #reader { width: 100%; max-width: 500px; margin: auto; border: 2px solid #58a6ff; border-radius: 12px; background: #161b22; }
+      #result { margin-top: 20px; padding: 15px; border-radius: 8px; font-weight: bold; display: none; line-height: 1.6; }
+      .success { background: #238636; color: white; border: 1px solid #2ea043; }
+      .error { background: #da3633; color: white; border: 1px solid #f85149; }
+      .warning { background: #d29922; color: black; }
+    </style>
+  </head>
+  <body>
+    <h2>QR Installation Verifier</h2>
+    <div id="reader"></div>
+    <div id="result"></div>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
-
-<style>
-body { font-family:sans-serif; text-align:center; background:#f4f6f9; }
-#reader { width:300px; margin:auto; }
-
-.card {
-    background:#fff; padding:20px; margin:20px auto;
-    border-radius:15px; max-width:400px;
-    box-shadow:0 5px 15px rgba(0,0,0,0.1);
-}
-
-button {
-    margin-top:10px;
-    padding:10px;
-    width:90%;
-    border:none;
-    border-radius:10px;
-    background:#007bff;
-    color:white;
-    font-size:16px;
-}
-
-.ok { color:green; font-weight:bold; }
-.bad { color:red; font-weight:bold; }
-.warn { color:orange; font-weight:bold; }
-</style>
-</head>
-
-<body>
-
-<h2>📷 สแกน QR เพื่อตรวจสอบพื้นที่</h2>
-
-<div id="reader"></div>
-
-<button onclick="switchCamera()">🔄 สลับกล้อง</button>
-
-<div class="card">
-    <p id="place">รอสแกน...</p>
-    <p id="distance"></p>
-    <p id="accuracy"></p>
-    <p id="status"></p>
-</div>
-
-<script>
-
-// ===== DATABASE =====
-const locations = [
+    <script>
+      // ข้อมูลตำแหน่งที่คุณต้องการฝังไว้
+      const locations = [
 { name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225348, lng: 99.538782, url: "chkL1stX9Q2.html" },
 { name: "โรงจอดรถหน้าโรงงาน", lat: 11.225717, lng: 99.538858, url: "001QWER.html" },
 { name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542, url: "chkL2stX9Q2.html" },
@@ -63,133 +30,78 @@ const locations = [
 { name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.225793, lng: 99.536973, url: "chkL5stX9Q2.html" },
 { name: "ด้านข้าง Canteen-ฝั่งซุ่มกระดังงา", lat: 11.226141, lng: 99.536935, url: "chkL6stX9Q2.html" },
 { name: "ข้าง Fire Station", lat: 11.225385, lng: 99.536293, url: "chkL9stX9Q2.html" },
-{ name: "หลังออดิ Lab หลังงาน", lat: 11.226963, lng: 99.537676, url: "chkL8stX9Q2.html" }
-];
+{ name: "หลังออดิ Lab หลังงาน", lat: 11.226963, lng: 99.537676, url: "chkL8stX9Q2.html" },
+{ name: "พื้นที่รับน้ำมันเตา", lat: 11.23028, lng: 99.532628, url: "chkL37stX9Q2.html" },
+{ name: "Office Slab Yard", lat: 11.2292899, lng: 99.533559, url: "chkL11stX9Q2.html" },
+{ name: "ข้าง RM Pulpit", lat: 11.229717, lng: 99.533626, url: "chkL16stX9Q2.html" },
+{ name: "หน้าห้อง MMD ข้าง Line ผลิด HSM", lat: 11.229913, lng: 99.533969, url: "chkL15stX9Q2.html" },
+{ name: "Roll shop HSM", lat: 11.229592, lng: 99.533996, url: "chkL17stX9Q2.html" },
+{ name: "Roll shop HSM ข้างห้อง Canteen RSH", lat: 11.229901, lng: 99.534295, url: "chkL18stX9Q2.html" },
+{ name: "หน้า Down Coiler Pulpit", lat: 11.23163462, lng: 99.53481861, url: "chkL19stX9Q2.html" },
+{ name: "อินเซ่ไฟฟ้า", lat: 11.232314, lng: 99.532847, url: "chkL34stX9Q2.html" },
+{ name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.53301, url: "chkL36stX9Q2.html" },
+{ name: "WTP-บ่อสแกล", lat: 11.231105, lng: 99.533641, url: "chkL23stX9Q2.html" },
+{ name: "ประตู Motor Room(ทางด่วน)", lat: 11.2309399, lng: 99.534475, url: "chkL20stX9Q2.html" },
+{ name: "ประตูทางออกไป WTP", lat: 11.231106, lng: 99.53477, url: "chkL14stX9Q2.html" },
+{ name: "จุดข้างห้องน้ำทำเนียบขาว", lat: 11.230784, lng: 99.53502, url: "chkL13stX9Q2.html" },
+{ name: "หน้า Store Room M1", lat: 11.230279, lng: 99.534693, url: "chkL12stX9Q2.html" },
+{ name: "Office CYS ชั้น1 ข้างห้องน้ำชั้น 1", lat: 11.233847, lng: 99.534942, url: "chkL33stX9Q2.html" },
+{ name: "SKP#1", lat: 11.231749, lng: 99.535804, url: "chkL24stX9Q2.html" },
+{ name: "SKP#3 ด้านหน้า ห้องน้ำ", lat: 11.233425, lng: 99.536786, url: "chkL25stX9Q2.html" },
+{ name: "Work Shop", lat: 11.234602, lng: 99.537824, url: "chkL27stX9Q2.html" },
+{ name: "หน้า WH", lat: 11.234008, lng: 99.537843, url: "chkL26stX9Q2.html" },
+{ name: "SKP#2 ชั้นบน", lat: 11.235266, lng: 99.538055, url: "chkL28stX9Q2.html" },
+{ name: "ป้อม 104 ข้าง TCS", lat: 11.233813, lng: 99.539183, url: "chkL10stX9Q2.html" },
+{ name: "Office POP", lat: 11.2371599, lng: 99.539134, url: "chkL31stX9Q2.html" },
+{ name: "ตาชั่ง TCS", lat: 11.2320967, lng: 99.5410033, url: "004QWER.html" },
+{ name: "WCE", lat: 11.23656, lng: 99.53628, url: "chkL9stX9Q3.html" }
+      ];
 
-// ===== สูตรคำนวณระยะ =====
-function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const dLat = (lat2-lat1)*Math.PI/180;
-    const dLon = (lon2-lon1)*Math.PI/180;
+      let userCoords = { lat: 0, lon: 0 };
 
-    const a = Math.sin(dLat/2)**2 +
-              Math.cos(lat1*Math.PI/180) *
-              Math.cos(lat2*Math.PI/180) *
-              Math.sin(dLon/2)**2;
+      // ดึงตำแหน่ง GPS ของผู้ใช้งาน
+      navigator.geolocation.getCurrentPosition((pos) => {
+        userCoords.lat = pos.coords.latitude;
+        userCoords.lon = pos.coords.longitude;
+      }, (err) => alert("กรุณาเปิด GPS เพื่อตรวจสอบตำแหน่ง"), { enableHighAccuracy: true });
 
-    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-}
+      function onScanSuccess(decodedText) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
 
-// ===== หลังสแกน =====
-function onScanSuccess(decodedText) {
+        // หาว่าใน URL ที่สแกนได้ มีชื่อไฟล์ตัวไหนในลิสต์บ้าง
+        const match = locations.find(item => decodedText.includes(item.url));
 
-    const place = locations.find(loc => decodedText.includes(loc.url));
-
-    if (!place) {
-        document.getElementById("place").innerText = "❌ ไม่รู้จัก QR นี้";
-        return;
-    }
-
-    document.getElementById("place").innerText = "📍 " + place.name;
-
-    navigator.geolocation.getCurrentPosition(
-    function(pos){
-
-        const acc = pos.coords.accuracy;
-        const userLat = pos.coords.latitude;
-        const userLng = pos.coords.longitude;
-
-        document.getElementById("accuracy").innerText =
-            "Accuracy: " + acc.toFixed(0) + " m";
-
-        if (acc > 30) {
-            document.getElementById("status").innerText = "⚠️ GPS ไม่แม่น";
-            document.getElementById("status").className = "warn";
-            return;
-        }
-
-        const distance = getDistance(userLat, userLng, place.lat, place.lng);
-
-        document.getElementById("distance").innerText =
-            "ระยะ: " + distance.toFixed(2) + " m";
-
-        if (distance <= 20) {
-            document.getElementById("status").innerText = "✅ อยู่ในพื้นที่";
-            document.getElementById("status").className = "ok";
+        if (match) {
+          const distance = getDistance(userCoords.lat, userCoords.lon, match.lat, match.lng);
+          
+          if (distance <= 20) {
+            resultDiv.className = "success";
+            resultDiv.innerHTML = `✅ ตรวจสอบสำเร็จ<br>สถานที่: ${match.name}<br>ระยะห่าง: ${distance.toFixed(2)} เมตร`;
+          } else {
+            resultDiv.className = "warning";
+            resultDiv.innerHTML = `⚠️ ตำแหน่งไม่ถูกต้อง!<br>QR นี้คือจุด: ${match.name}<br>แต่คุณอยู่ห่างออกไปถึง: ${distance.toFixed(2)} เมตร`;
+          }
         } else {
-            document.getElementById("status").innerText =
-                "❌ นอกพื้นที่ (" + distance.toFixed(0) + " m)";
-            document.getElementById("status").className = "bad";
+          resultDiv.className = "error";
+          resultDiv.innerHTML = "❌ ไม่พบข้อมูล QR นี้ในระบบตรวจสอบ";
         }
+      }
 
-    },
-    function(){
-        document.getElementById("status").innerText = "❌ ต้องเปิด Location";
-    },
-    {
-        enableHighAccuracy:true,
-        timeout:10000,
-        maximumAge:0
-    });
+      // ฟังก์ชันคำนวณระยะทาง
+      function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // รัศมีโลก (เมตร)
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      }
 
-}
-
-// ===== กล้อง =====
-const html5QrCode = new Html5Qrcode("reader");
-
-let cameras = [];
-let currentCameraIndex = 0;
-
-// โหลดกล้อง
-Html5Qrcode.getCameras().then(devices => {
-
-    if (!devices || devices.length === 0) {
-        alert("ไม่พบกล้อง");
-        return;
-    }
-
-    cameras = devices;
-
-    // เลือกกล้องหลัง
-    const backIndex = cameras.findIndex(cam =>
-        cam.label.toLowerCase().includes("back") ||
-        cam.label.toLowerCase().includes("rear")
-    );
-
-    currentCameraIndex = backIndex !== -1 ? backIndex : 0;
-
-    startCamera();
-});
-
-// เริ่มกล้อง
-function startCamera() {
-    html5QrCode.start(
-        cameras[currentCameraIndex].id,
-        { fps: 10, qrbox: 250 },
-        onScanSuccess
-    );
-}
-
-// สลับกล้อง
-function switchCamera() {
-
-    if (cameras.length < 2) {
-        alert("มีกล้องเดียว");
-        return;
-    }
-
-    html5QrCode.stop().then(() => {
-
-        currentCameraIndex =
-            (currentCameraIndex + 1) % cameras.length;
-
-        startCamera();
-
-    });
-
-}
-
-</script>
-
-</body>
+      const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      html5QrcodeScanner.render(onScanSuccess);
+    </script>
+  </body>
 </html>
