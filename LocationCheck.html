@@ -92,11 +92,10 @@ h2 {
   100% { top: 80%; opacity: 0; }
 }
 
-/* STATUS TEXT */
+/* STATUS */
 #statusText {
   margin-top: 10px;
   opacity: 0.7;
-  font-size: 0.95rem;
 }
 
 /* RESULT */
@@ -106,36 +105,29 @@ h2 {
   margin-top: 20px;
   padding: 18px;
   border-radius: 18px;
-  font-size: 1.05rem;
   text-align: center;
   display: none;
   backdrop-filter: blur(10px);
-  animation: fadeUp 0.4s ease;
 }
 
-.status-emoji { font-size: 2.2rem; display: block; margin-bottom: 8px; }
+.status-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
 
-.success { 
-  border: 1px solid var(--neon-green); 
-  background: rgba(57,255,20,0.08);
-  color: var(--neon-green);
-}
+.success { border: 1px solid var(--neon-green); background: rgba(57,255,20,0.08); color: var(--neon-green);}
+.error { border: 1px solid var(--neon-red); background: rgba(255,49,49,0.08); color: var(--neon-red);}
+.warning { border: 1px solid #ffcc00; background: rgba(255,204,0,0.08); color: #ffcc00;}
 
-.error { 
-  border: 1px solid var(--neon-red); 
-  background: rgba(255,49,49,0.08);
-  color: var(--neon-red);
-}
+/* BUTTON */
+#actionButtons { display:none; margin-top:10px; }
 
-.warning { 
-  border: 1px solid #ffcc00; 
-  background: rgba(255,204,0,0.08);
-  color: #ffcc00;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px);}
-  to { opacity: 1; transform: translateY(0);}
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(45deg, #00f2ff, #00c3ff);
+  color: #000;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 5px;
 }
 </style>
 </head>
@@ -148,7 +140,6 @@ h2 {
 
 <div id="reader-wrapper">
   <div id="reader"></div>
-
   <div class="scan-overlay">
     <div class="scan-box"></div>
     <div class="scan-line"></div>
@@ -158,6 +149,11 @@ h2 {
 <p id="statusText">🔍 กำลังสแกน QR...</p>
 
 <div id="result"></div>
+
+<div id="actionButtons">
+  <button onclick="restartScan()" class="btn">🔄 สแกนใหม่</button>
+  <button onclick="clearResult()" class="btn" style="background:#ff3131;color:#fff;">🧹 ล้าง</button>
+</div>
 
 <script>
 const locations = [
@@ -196,84 +192,104 @@ const locations = [
         { name: "Office POP", lat: 11.2371599, lng: 99.539134, url: "chkL31stX9Q2.html" },
         { name: "ตาชั่ง TCS", lat: 11.2320967, lng: 99.5410033, url: "004QWER.html" },
         { name: "WCE", lat: 11.23656, lng: 99.53628, url: "chkL9stX9Q3.html" }
+  // เพิ่มได้เอง
 ];
 
 let userCoords = { lat: 0, lon: 0 };
+let scanning = true;
+let isCameraRunning = false;
+
 const html5QrCode = new Html5Qrcode("reader");
 
 // GPS
-navigator.geolocation.watchPosition((pos) => {
+navigator.geolocation.watchPosition(pos => {
   userCoords.lat = pos.coords.latitude;
   userCoords.lon = pos.coords.longitude;
 });
 
 // start camera
-function startCamera() {
-  const config = { 
-    fps: 15, 
-    qrbox: (w) => ({ width: w * 0.7, height: w * 0.7 })
-  };
-  html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+async function startCamera() {
+  if (isCameraRunning) return;
+
+  const config = { fps: 15, qrbox: w => ({ width: w*0.7, height: w*0.7 }) };
+
+  try {
+    await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+    isCameraRunning = true;
+  } catch(e) {
+    console.error(e);
+  }
 }
 
 // scan success
-function onScanSuccess(decodedText) {
-  const resultDiv = document.getElementById('result');
-  const statusText = document.getElementById('statusText');
+async function onScanSuccess(decodedText) {
+  if (!scanning) return;
+
+  scanning = false;
+
+  const result = document.getElementById('result');
+  const status = document.getElementById('statusText');
+  const buttons = document.getElementById('actionButtons');
+
+  try {
+    await html5QrCode.stop();
+    isCameraRunning = false;
+  } catch(e) {}
 
   if (navigator.vibrate) navigator.vibrate(100);
 
-  const match = locations.find(item => decodedText.includes(item.url));
+  const match = locations.find(i => decodedText.includes(i.url));
 
-  resultDiv.style.display = 'block';
-  statusText.innerText = "📡 ตรวจสอบตำแหน่งแล้ว";
+  result.style.display = 'block';
+  buttons.style.display = 'block';
+  status.innerText = "✅ สแกนสำเร็จ";
 
   if (match) {
-    const distance = getDistance(userCoords.lat, userCoords.lon, match.lat, match.lng);
+    const d = getDistance(userCoords.lat, userCoords.lon, match.lat, match.lng);
 
-    if (distance <= 20) {
-      resultDiv.className = "success";
-      resultDiv.innerHTML = `
-        <span class="status-emoji">✅</span>
-        <strong>ติดตั้งถูกต้อง</strong><br>
-        📍 ${match.name}<br>
-        ระยะห่าง: ${distance.toFixed(2)} ม.
-      `;
-    } else {
-      resultDiv.className = "warning";
-      resultDiv.innerHTML = `
-        <span class="status-emoji">⚠️</span>
-        <strong>พิกัดไม่ตรงจุด</strong><br>
-        ${match.name}<br>
-        ห่าง: ${distance.toFixed(2)} ม.
-      `;
-    }
+    result.className = d <= 20 ? "success" : "warning";
+    result.innerHTML = `
+      <span class="status-emoji">${d<=20?"✅":"⚠️"}</span>
+      <strong>${d<=20?"ติดตั้งถูกต้อง":"พิกัดไม่ตรงจุด"}</strong><br>
+      📍 ${match.name}<br>
+      ระยะ: ${d.toFixed(2)} ม.
+    `;
   } else {
-    resultDiv.className = "error";
-    resultDiv.innerHTML = `
+    result.className = "error";
+    result.innerHTML = `
       <span class="status-emoji">❌</span>
-      <strong>QR ไม่ถูกต้อง</strong><br>
-      ไม่พบข้อมูล
+      <strong>QR ไม่ถูกต้อง</strong>
     `;
   }
+}
 
-  // reset UI
-  setTimeout(() => {
-    resultDiv.style.display = 'none';
-    statusText.innerText = "🔍 กำลังสแกน QR...";
-  }, 3000);
+// restart
+function restartScan() {
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('actionButtons').style.display = 'none';
+  document.getElementById('statusText').innerText = "🔍 กำลังสแกน...";
+  scanning = true;
+  startCamera();
+}
+
+// clear
+function clearResult() {
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('actionButtons').style.display = 'none';
+  document.getElementById('statusText').innerText = "🔍 พร้อมสแกนใหม่";
+  scanning = true;
+  startCamera();
 }
 
 // distance
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
   const a = Math.sin(dLat/2)**2 +
-            Math.cos(lat1*Math.PI/180) *
-            Math.cos(lat2*Math.PI/180) *
-            Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+    Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 window.onload = startCamera;
