@@ -25,22 +25,17 @@ body {
   min-height: 100vh;
 }
 
-/* HEADER */
 header {
   width: 100%;
   padding: 18px 0;
   text-align: center;
   backdrop-filter: blur(10px);
   background: rgba(0,0,0,0.4);
-  border-bottom: 1px solid rgba(0,242,255,0.2);
 }
 
 h2 { 
   margin: 0;
-  font-size: 1.4rem;
   color: var(--neon-blue); 
-  text-shadow: 0 0 12px var(--neon-blue); 
-  letter-spacing: 2px;
 }
 
 /* SCANNER */
@@ -52,12 +47,10 @@ h2 {
   overflow: hidden;
   position: relative;
   background: black;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.8);
 }
 
 #reader { width: 100%; }
 
-/* overlay */
 .scan-overlay {
   position: absolute;
   inset: 0;
@@ -73,7 +66,6 @@ h2 {
   transform: translate(-50%, -50%);
   border: 2px solid var(--neon-blue);
   border-radius: 16px;
-  box-shadow: 0 0 15px var(--neon-blue);
 }
 
 .scan-line {
@@ -92,13 +84,8 @@ h2 {
   100% { top: 80%; opacity: 0; }
 }
 
-/* STATUS */
-#statusText {
-  margin-top: 10px;
-  opacity: 0.7;
-}
+#statusText { margin-top: 10px; }
 
-/* RESULT */
 #result {
   width: 90%;
   max-width: 420px;
@@ -107,25 +94,18 @@ h2 {
   border-radius: 18px;
   text-align: center;
   display: none;
-  backdrop-filter: blur(10px);
 }
 
-.status-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
+.success { border: 1px solid var(--neon-green); color: var(--neon-green);}
+.error { border: 1px solid var(--neon-red); color: var(--neon-red);}
+.warning { border: 1px solid #ffcc00; color: #ffcc00;}
 
-.success { border: 1px solid var(--neon-green); background: rgba(57,255,20,0.08); color: var(--neon-green);}
-.error { border: 1px solid var(--neon-red); background: rgba(255,49,49,0.08); color: var(--neon-red);}
-.warning { border: 1px solid #ffcc00; background: rgba(255,204,0,0.08); color: #ffcc00;}
-
-/* BUTTON */
 #actionButtons { display:none; margin-top:10px; }
 
 .btn {
   padding: 10px 16px;
-  border: none;
   border-radius: 10px;
-  background: linear-gradient(45deg, #00f2ff, #00c3ff);
-  color: #000;
-  font-weight: bold;
+  border: none;
   cursor: pointer;
   margin: 5px;
 }
@@ -152,36 +132,33 @@ h2 {
 
 <div id="actionButtons">
   <button onclick="restartScan()" class="btn">🔄 สแกนใหม่</button>
-  <button onclick="clearResult()" class="btn" style="background:#ff3131;color:#fff;">🧹 ล้าง</button>
+  <button onclick="clearResult()" class="btn">🧹 ล้าง</button>
+  <button onclick="updateLocation()" class="btn" style="background:#39ff14;">
+    📍 อัปเดทตำแหน่ง
+  </button>
 </div>
 
 <script>
 let locations = [];
-async function loadLocations() {
-  try {
-    const res = await fetch("https://script.google.com/macros/s/AKfycbxwp63522RTGXFXcpfiqhmJmPEKpYDol5yzRIxRjDo9T5LMZ-P0crY6l0CFsyFMtdVgCw/exec");
-    const data = await res.json();
-
-    locations = data.map(item => ({
-      name: item.name,
-      lat: parseFloat(item.lat),
-      lng: parseFloat(item.lng),
-      url: item.url.split("/").pop()
-    }));
-
-    console.log("โหลดข้อมูลสำเร็จ:", locations);
-
-  } catch (err) {
-    console.error("โหลดข้อมูลล้มเหลว:", err);
-    alert("❌ โหลดข้อมูลสถานที่ไม่สำเร็จ");
-  }
-}
-
 let userCoords = { lat: 0, lon: 0 };
 let scanning = true;
 let isCameraRunning = false;
+let lastMatch = null;
 
 const html5QrCode = new Html5Qrcode("reader");
+
+// โหลดข้อมูล
+async function loadLocations() {
+  const res = await fetch("https://script.google.com/macros/s/AKfycbxwp63522RTGXFXcpfiqhmJmPEKpYDol5yzRIxRjDo9T5LMZ-P0crY6l0CFsyFMtdVgCw/exec");
+  const data = await res.json();
+
+  locations = data.map(item => ({
+    name: item.name,
+    lat: parseFloat(item.lat),
+    lng: parseFloat(item.lng),
+    url: item.url.split("/").pop()
+  }));
+}
 
 // GPS
 navigator.geolocation.watchPosition(pos => {
@@ -195,30 +172,21 @@ async function startCamera() {
 
   const config = { fps: 15, qrbox: w => ({ width: w*0.7, height: w*0.7 }) };
 
-  try {
-    await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-    isCameraRunning = true;
-  } catch(e) {
-    console.error(e);
-  }
+  await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+  isCameraRunning = true;
 }
 
-// scan success
+// scan
 async function onScanSuccess(decodedText) {
   if (!scanning) return;
-
   scanning = false;
+
+  await html5QrCode.stop();
+  isCameraRunning = false;
 
   const result = document.getElementById('result');
   const status = document.getElementById('statusText');
   const buttons = document.getElementById('actionButtons');
-
-  try {
-    await html5QrCode.stop();
-    isCameraRunning = false;
-  } catch(e) {}
-
-  if (navigator.vibrate) navigator.vibrate(100);
 
   const match = locations.find(i => decodedText.includes(i.url));
 
@@ -227,21 +195,53 @@ async function onScanSuccess(decodedText) {
   status.innerText = "✅ สแกนสำเร็จ";
 
   if (match) {
+    lastMatch = match;
+
     const d = getDistance(userCoords.lat, userCoords.lon, match.lat, match.lng);
 
     result.className = d <= 20 ? "success" : "warning";
     result.innerHTML = `
-      <span class="status-emoji">${d<=20?"✅":"⚠️"}</span>
-      <strong>${d<=20?"ติดตั้งถูกต้อง":"พิกัดไม่ตรงจุด"}</strong><br>
-      📍 ${match.name}<br>
+      <strong>${match.name}</strong><br>
       ระยะ: ${d.toFixed(2)} ม.
     `;
   } else {
     result.className = "error";
-    result.innerHTML = `
-      <span class="status-emoji">❌</span>
-      <strong>QR ไม่ถูกต้อง</strong>
-    `;
+    result.innerHTML = "❌ QR ไม่ถูกต้อง";
+  }
+}
+
+// อัปเดทตำแหน่ง
+async function updateLocation() {
+
+  if (!lastMatch) {
+    alert("❌ ยังไม่มีข้อมูล");
+    return;
+  }
+
+  if (!userCoords.lat) {
+    alert("❌ ไม่มี GPS");
+    return;
+  }
+
+  if (!confirm("ยืนยันอัปเดทตำแหน่ง?")) return;
+
+  const res = await fetch("https://script.google.com/macros/s/AKfycbxbdQjDtu6da-JIuhHUAVGhohViHvVVALMkIJZItMZWiXUatCR2Sk3U7T4ka8qsUD7N6A/exec", {
+    method: "POST",
+    body: JSON.stringify({
+      action: "updateLocation",
+      name: lastMatch.name,
+      lat: userCoords.lat,
+      lng: userCoords.lon
+    }),
+    headers: { "Content-Type": "application/json" }
+  });
+
+  const data = await res.json();
+
+  if (data.status === "success") {
+    alert("✅ อัปเดทสำเร็จ");
+  } else {
+    alert("❌ ไม่สำเร็จ");
   }
 }
 
@@ -256,11 +256,7 @@ function restartScan() {
 
 // clear
 function clearResult() {
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('actionButtons').style.display = 'none';
-  document.getElementById('statusText').innerText = "🔍 พร้อมสแกนใหม่";
-  scanning = true;
-  startCamera();
+  location.reload();
 }
 
 // distance
