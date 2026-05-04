@@ -9,290 +9,209 @@
 
 <style>
 :root { 
-  --neon-blue: #00f2ff; 
-  --neon-green: #39ff14; 
-  --neon-red: #ff3131; 
+  --blue: #00f2ff; 
+  --green: #39ff14; 
+  --red: #ff3131; 
+  --yellow: #ffcc00;
 }
 
 body { 
-  font-family: 'Segoe UI', Tahoma, sans-serif; 
-  background: radial-gradient(circle at top, #111827, #020617);
+  font-family: sans-serif; 
+  background: #020617;
   color: #e6edf3; 
   margin: 0; 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  min-height: 100vh;
-}
-
-/* HEADER */
-header {
-  width: 100%;
-  padding: 18px 0;
   text-align: center;
-  backdrop-filter: blur(10px);
-  background: rgba(0,0,0,0.4);
-  border-bottom: 1px solid rgba(0,242,255,0.2);
 }
 
-h2 { 
-  margin: 0;
-  font-size: 1.4rem;
-  color: var(--neon-blue); 
-  text-shadow: 0 0 12px var(--neon-blue); 
-  letter-spacing: 2px;
+header {
+  padding: 15px;
+  background: rgba(0,0,0,0.5);
+  color: var(--blue);
+  font-weight: bold;
 }
 
-/* SCANNER */
-#reader-wrapper {
-  width: 92%;
-  max-width: 420px;
-  margin-top: 20px;
-  border-radius: 20px;
-  overflow: hidden;
-  position: relative;
-  background: black;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+#reader {
+  width: 90%;
+  max-width: 400px;
+  margin: 20px auto;
 }
 
-#reader { width: 100%; }
-
-/* overlay */
-.scan-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.scan-box {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 65%;
-  height: 65%;
-  transform: translate(-50%, -50%);
-  border: 2px solid var(--neon-blue);
-  border-radius: 16px;
-  box-shadow: 0 0 15px var(--neon-blue);
-}
-
-.scan-line {
-  position: absolute;
-  width: 65%;
-  height: 2px;
-  background: var(--neon-blue);
-  left: 50%;
-  transform: translateX(-50%);
-  animation: scanMove 2s linear infinite;
-}
-
-@keyframes scanMove {
-  0% { top: 20%; opacity: 0; }
-  50% { opacity: 1; }
-  100% { top: 80%; opacity: 0; }
-}
-
-/* STATUS */
 #statusText {
   margin-top: 10px;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
-/* RESULT */
 #result {
   width: 90%;
-  max-width: 420px;
-  margin-top: 20px;
-  padding: 18px;
-  border-radius: 18px;
-  text-align: center;
+  max-width: 400px;
+  margin: 20px auto;
+  padding: 15px;
+  border-radius: 12px;
   display: none;
-  backdrop-filter: blur(10px);
 }
 
-.status-emoji { font-size: 2rem; display: block; margin-bottom: 8px; }
+.success { border:1px solid var(--green); color:var(--green); }
+.error { border:1px solid var(--red); color:var(--red); }
+.warning { border:1px solid var(--yellow); color:var(--yellow); }
 
-.success { border: 1px solid var(--neon-green); background: rgba(57,255,20,0.08); color: var(--neon-green);}
-.error { border: 1px solid var(--neon-red); background: rgba(255,49,49,0.08); color: var(--neon-red);}
-.warning { border: 1px solid #ffcc00; background: rgba(255,204,0,0.08); color: #ffcc00;}
-
-/* BUTTON */
-#actionButtons { display:none; margin-top:10px; }
-
-.btn {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(45deg, #00f2ff, #00c3ff);
-  color: #000;
-  font-weight: bold;
-  cursor: pointer;
-  margin: 5px;
+button {
+  padding:10px 15px;
+  margin:5px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-  <h2>QR CHECKER PRO</h2>
-</header>
+<header>QR CHECKER PRO</header>
 
-<div id="reader-wrapper">
-  <div id="reader"></div>
-  <div class="scan-overlay">
-    <div class="scan-box"></div>
-    <div class="scan-line"></div>
-  </div>
-</div>
-
-<p id="statusText">🔍 กำลังสแกน QR...</p>
+<div id="reader"></div>
+<p id="statusText">🔍 กำลังเตรียมกล้อง...</p>
 
 <div id="result"></div>
 
-<div id="actionButtons">
-  <button onclick="restartScan()" class="btn">🔄 สแกนใหม่</button>
-  <button onclick="clearResult()" class="btn" style="background:#ff3131;color:#fff;">🧹 ล้าง</button>
-</div>
+<button onclick="restartScan()">🔄 สแกนใหม่</button>
 
 <script>
-const locations = [
-        { name: "โรงจอดรถด้านหน้าป้อม", lat: 11.225348, lng: 99.538782, url: "chkL1stX9Q2.html" },
-        { name: "โรงจอดรถหน้าโรงงาน", lat: 11.225717, lng: 99.538858, url: "001QWER.html" },
-        { name: "ป้อมข้างห้องน้ำ", lat: 11.225813, lng: 99.538542, url: "chkL2stX9Q2.html" },
-        { name: "ป้อม รปภ. 101", lat: 11.225467, lng: 99.538279, url: "002QWER.html" },
-        { name: "ออฟฟิสหน้า SSI", lat: 11.225359, lng: 99.537677, url: "chkL3stX9Q2.html" },
-        { name: "ซุ้มศาลาพักผ่อนทางเดินไป Canteen", lat: 11.2254441, lng: 99.537348, url: "chkL4stX9Q2.html" },
-        { name: "ออดิทรอเดียม", lat: 11.226557, lng: 99.53779, url: "chkL7stX9Q2.html" },
-        { name: "ด้านข้าง Canteen-หน้าห้องน้ำ Canteen", lat: 11.225793, lng: 99.536973, url: "chkL5stX9Q2.html" },
-        { name: "ด้านข้าง Canteen-ฝั่งซุ่มกระดังงา", lat: 11.226141, lng: 99.536935, url: "chkL6stX9Q2.html" },
-        { name: "ข้าง Fire Station", lat: 11.225385, lng: 99.536293, url: "chkL9stX9Q2.html" },
-        { name: "หลังออดิ Lab หลังงาน", lat: 11.226963, lng: 99.537676, url: "chkL8stX9Q2.html" },
-        { name: "พื้นที่รับน้ำมันเตา", lat: 11.23028, lng: 99.532628, url: "chkL37stX9Q2.html" },
-        { name: "Office Slab Yard", lat: 11.2292899, lng: 99.533559, url: "chkL11stX9Q2.html" },
-        { name: "ข้าง RM Pulpit", lat: 11.229717, lng: 99.533626, url: "chkL16stX9Q2.html" },
-        { name: "หน้าห้อง MMD ข้าง Line ผลิด HSM", lat: 11.229913, lng: 99.533969, url: "chkL15stX9Q2.html" },
-        { name: "Roll shop HSM", lat: 11.229592, lng: 99.533996, url: "chkL17stX9Q2.html" },
-        { name: "Roll shop HSM ข้างห้อง Canteen RSH", lat: 11.229901, lng: 99.534295, url: "chkL18stX9Q2.html" },
-        { name: "หน้า Down Coiler Pulpit", lat: 11.23163462, lng: 99.53481861, url: "chkL19stX9Q2.html" },
-        { name: "อินเซ่ไฟฟ้า", lat: 11.232314, lng: 99.532847, url: "chkL34stX9Q2.html" },
-        { name: "บริเวณจุดพักพนักงาน Cleaning", lat: 11.231295, lng: 99.53301, url: "chkL36stX9Q2.html" },
-        { name: "WTP-บ่อสแกล", lat: 11.231105, lng: 99.533641, url: "chkL23stX9Q2.html" },
-        { name: "ประตู Motor Room(ทางด่วน)", lat: 11.2309399, lng: 99.534475, url: "chkL20stX9Q2.html" },
-        { name: "ประตูทางออกไป WTP", lat: 11.231106, lng: 99.53477, url: "chkL14stX9Q2.html" },
-        { name: "จุดข้างห้องน้ำทำเนียบขาว", lat: 11.230784, lng: 99.53502, url: "chkL13stX9Q2.html" },
-        { name: "หน้า Store Room M1", lat: 11.230279, lng: 99.534693, url: "chkL12stX9Q2.html" },
-        { name: "Office CYS ชั้น1 ข้างห้องน้ำชั้น 1", lat: 11.233847, lng: 99.534942, url: "chkL33stX9Q2.html" },
-        { name: "SKP#1", lat: 11.231749, lng: 99.535804, url: "chkL24stX9Q2.html" },
-        { name: "SKP#3 ด้านหน้า ห้องน้ำ", lat: 11.233425, lng: 99.536786, url: "chkL25stX9Q2.html" },
-        { name: "Work Shop", lat: 11.234602, lng: 99.537824, url: "chkL27stX9Q2.html" },
-        { name: "หน้า WH", lat: 11.234008, lng: 99.537843, url: "chkL26stX9Q2.html" },
-        { name: "SKP#2 ชั้นบน", lat: 11.235266, lng: 99.538055, url: "chkL28stX9Q2.html" },
-        { name: "ป้อม 104 ข้าง TCS", lat: 11.233813, lng: 99.539183, url: "chkL10stX9Q2.html" },
-        { name: "Office POP", lat: 11.2371599, lng: 99.539134, url: "chkL31stX9Q2.html" },
-        { name: "ตาชั่ง TCS", lat: 11.2320967, lng: 99.5410033, url: "004QWER.html" },
-        { name: "WCE", lat: 11.23656, lng: 99.53628, url: "chkL9stX9Q3.html" }
-  // เพิ่มได้เอง
-];
+const API_URL = "https://script.google.com/macros/s/AKfycbxwp63522RTGXFXcpfiqhmJmPEKpYDol5yzRIxRjDo9T5LMZ-P0crY6l0CFsyFMtdVgCw/exec";
 
 let userCoords = { lat: 0, lon: 0 };
 let scanning = true;
-let isCameraRunning = false;
+let html5QrCode;
 
-const html5QrCode = new Html5Qrcode("reader");
+// -------------------
+// 📍 GPS
+// -------------------
+navigator.geolocation.watchPosition(
+  pos => {
+    userCoords.lat = pos.coords.latitude;
+    userCoords.lon = pos.coords.longitude;
+  },
+  err => {
+    console.warn("GPS error:", err);
+  },
+  { enableHighAccuracy: true }
+);
 
-// GPS
-navigator.geolocation.watchPosition(pos => {
-  userCoords.lat = pos.coords.latitude;
-  userCoords.lon = pos.coords.longitude;
-});
+// -------------------
+// 📷 START CAMERA
+// -------------------
+async function startScanner() {
+  document.getElementById("statusText").innerText = "🔍 กำลังสแกน QR...";
 
-// start camera
-async function startCamera() {
-  if (isCameraRunning) return;
-
-  const config = { fps: 15, qrbox: w => ({ width: w*0.7, height: w*0.7 }) };
+  html5QrCode = new Html5Qrcode("reader");
 
   try {
-    await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-    isCameraRunning = true;
-  } catch(e) {
-    console.error(e);
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 15, qrbox: 250 },
+      onScanSuccess
+    );
+  } catch (err) {
+    console.error(err);
+    document.getElementById("statusText").innerText = "❌ เปิดกล้องไม่สำเร็จ";
   }
 }
 
-// scan success
+// -------------------
+// ✅ SCAN SUCCESS
+// -------------------
 async function onScanSuccess(decodedText) {
   if (!scanning) return;
 
   scanning = false;
 
-  const result = document.getElementById('result');
-  const status = document.getElementById('statusText');
-  const buttons = document.getElementById('actionButtons');
+  const status = document.getElementById("statusText");
+  const result = document.getElementById("result");
+
+  status.innerText = "⏳ กำลังตรวจสอบ...";
 
   try {
     await html5QrCode.stop();
-    isCameraRunning = false;
   } catch(e) {}
 
-  if (navigator.vibrate) navigator.vibrate(100);
+  try {
+    const res = await fetch(API_URL + "?url=" + encodeURIComponent(decodedText));
+    const data = await res.json();
 
-  const match = locations.find(i => decodedText.includes(i.url));
+    result.style.display = "block";
 
-  result.style.display = 'block';
-  buttons.style.display = 'block';
-  status.innerText = "✅ สแกนสำเร็จ";
+    if (!data.found) {
+      result.className = "error";
+      result.innerHTML = "❌ QR ไม่ถูกต้อง";
+      return;
+    }
 
-  if (match) {
-    const d = getDistance(userCoords.lat, userCoords.lon, match.lat, match.lng);
+    // 📏 คำนวณระยะ
+    const d = getDistance(
+      userCoords.lat,
+      userCoords.lon,
+      data.lat,
+      data.lng
+    );
 
-    result.className = d <= 20 ? "success" : "warning";
-    result.innerHTML = `
-      <span class="status-emoji">${d<=20?"✅":"⚠️"}</span>
-      <strong>${d<=20?"ติดตั้งถูกต้อง":"พิกัดไม่ตรงจุด"}</strong><br>
-      📍 ${match.name}<br>
-      ระยะ: ${d.toFixed(2)} ม.
-    `;
-  } else {
+    if (d <= 20) {
+      result.className = "success";
+      result.innerHTML = `
+        ✅ <b>ติดตั้งถูกต้อง</b><br>
+        📍 ${data.name}<br>
+        ระยะ ${d.toFixed(2)} เมตร
+      `;
+    } else {
+      result.className = "warning";
+      result.innerHTML = `
+        ⚠️ <b>พิกัดไม่ตรง</b><br>
+        📍 ${data.name}<br>
+        ระยะ ${d.toFixed(2)} เมตร
+      `;
+    }
+
+    status.innerText = "✅ ตรวจสอบเสร็จแล้ว";
+
+  } catch (err) {
+    console.error(err);
+
     result.className = "error";
-    result.innerHTML = `
-      <span class="status-emoji">❌</span>
-      <strong>QR ไม่ถูกต้อง</strong>
-    `;
+    result.style.display = "block";
+    result.innerHTML = "❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
   }
 }
 
-// restart
+// -------------------
+// 🔄 RESTART
+// -------------------
 function restartScan() {
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('actionButtons').style.display = 'none';
-  document.getElementById('statusText').innerText = "🔍 กำลังสแกน...";
+  document.getElementById("result").style.display = "none";
   scanning = true;
-  startCamera();
+  startScanner();
 }
 
-// clear
-function clearResult() {
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('actionButtons').style.display = 'none';
-  document.getElementById('statusText').innerText = "🔍 พร้อมสแกนใหม่";
-  scanning = true;
-  startCamera();
-}
-
-// distance
+// -------------------
+// 📏 DISTANCE
+// -------------------
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
-  const dLat = (lat2-lat1)*Math.PI/180;
-  const dLon = (lon2-lon1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 +
-    Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
-    Math.sin(dLon/2)**2;
-  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1*Math.PI/180) *
+    Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-window.onload = startCamera;
+// -------------------
+// 🚀 INIT
+// -------------------
+window.onload = startScanner;
+
 </script>
 
 </body>
