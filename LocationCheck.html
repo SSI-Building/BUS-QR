@@ -90,7 +90,7 @@ const UPDATE_API = "https://script.google.com/macros/s/AKfycbxbdQjDtu6da-JIuhHUA
 let userCoords = { lat:0, lon:0 };
 let scanning = true;
 let html5QrCode;
-let currentRow = null;
+let currentUrl = "";
 
 // -------------------
 // 📍 GPS
@@ -100,16 +100,15 @@ navigator.geolocation.watchPosition(
     userCoords.lat = pos.coords.latitude;
     userCoords.lon = pos.coords.longitude;
   },
-  err => console.warn(err),
+  err => console.warn("GPS error:", err),
   { enableHighAccuracy:true }
 );
 
 // -------------------
-// 📷 START SCAN
+// 📷 START SCANNER
 // -------------------
 async function startScanner() {
   document.getElementById("statusText").innerText = "🔍 กำลังสแกน...";
-
   html5QrCode = new Html5Qrcode("reader");
 
   try {
@@ -119,6 +118,7 @@ async function startScanner() {
       onScanSuccess
     );
   } catch (err) {
+    console.error(err);
     document.getElementById("statusText").innerText = "❌ เปิดกล้องไม่ได้";
   }
 }
@@ -139,18 +139,26 @@ async function onScanSuccess(decodedText) {
   try { await html5QrCode.stop(); } catch(e){}
 
   try {
+    console.log("QR:", decodedText);
+
+    currentUrl = decodedText; // 🔥 เก็บ URL
+
     const res = await fetch(FIND_API + "?url=" + encodeURIComponent(decodedText));
     const data = await res.json();
+
+    console.log("API:", data);
 
     result.style.display = "block";
 
     if (!data.found) {
+      currentUrl = "";
+      updateBtn.style.display = "none";
+
       result.className = "error";
       result.innerHTML = "❌ QR ไม่ถูกต้อง";
       return;
     }
 
-    currentRow = data.row;
     updateBtn.style.display = "inline-block";
 
     const d = getDistance(
@@ -160,26 +168,20 @@ async function onScanSuccess(decodedText) {
       data.lng
     );
 
-    if (d <= 20) {
-      result.className = "success";
-      result.innerHTML = `
-        ✅ <b>ติดตั้งถูกต้อง</b><br>
-        📍 ${data.name}<br>
-        ระยะ ${d.toFixed(2)} เมตร
-      `;
-    } else {
-      result.className = "warning";
-      result.innerHTML = `
-        ⚠️ <b>พิกัดไม่ตรง</b><br>
-        📍 ${data.name}<br>
-        ระยะ ${d.toFixed(2)} เมตร
-      `;
-    }
+    result.className = d <= 20 ? "success" : "warning";
+    result.innerHTML = `
+      <b>${d<=20?"✅ ติดตั้งถูกต้อง":"⚠️ พิกัดไม่ตรง"}</b><br>
+      📍 ${data.name}<br>
+      ระยะ ${d.toFixed(2)} เมตร
+    `;
 
     status.innerText = "✅ ตรวจสอบแล้ว";
 
   } catch (err) {
     console.error(err);
+
+    currentUrl = "";
+
     result.className = "error";
     result.style.display = "block";
     result.innerHTML = "❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
@@ -187,11 +189,17 @@ async function onScanSuccess(decodedText) {
 }
 
 // -------------------
-// 📍 UPDATE LOCATION
+// 📍 UPDATE LOCATION (ใช้ URL)
 // -------------------
 async function updateLocation() {
-  if (!currentRow) {
-    alert("ไม่พบข้อมูล");
+
+  if (!currentUrl) {
+    alert("❌ ต้องสแกนก่อน");
+    return;
+  }
+
+  if (!userCoords.lat || !userCoords.lon) {
+    alert("❌ ยังไม่ได้ตำแหน่ง GPS");
     return;
   }
 
@@ -203,17 +211,19 @@ async function updateLocation() {
   try {
     const res = await fetch(
       UPDATE_API +
-      "?row=" + currentRow +
+      "?url=" + encodeURIComponent(currentUrl) +
       "&lat=" + userCoords.lat +
       "&lng=" + userCoords.lon
     );
 
     const data = await res.json();
 
+    console.log("UPDATE:", data);
+
     if (data.success) {
-      status.innerText = "✅ อัปเดทพิกัดสำเร็จ";
+      status.innerText = "✅ อัปเดทสำเร็จ (Row " + data.row + ")";
     } else {
-      status.innerText = "❌ อัปเดทไม่สำเร็จ";
+      status.innerText = "❌ " + data.message;
     }
 
   } catch (err) {
@@ -228,6 +238,7 @@ async function updateLocation() {
 function restartScan() {
   document.getElementById("result").style.display = "none";
   document.getElementById("updateBtn").style.display = "none";
+  currentUrl = "";
   scanning = true;
   startScanner();
 }
