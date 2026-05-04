@@ -9,50 +9,47 @@
 
 <style>
 :root { 
-  --blue: #00f2ff; 
-  --green: #39ff14; 
-  --red: #ff3131; 
-  --yellow: #ffcc00;
+  --blue:#00f2ff; 
+  --green:#39ff14; 
+  --red:#ff3131; 
+  --yellow:#ffcc00;
 }
 
 body { 
-  font-family: sans-serif; 
-  background: #020617;
-  color: #e6edf3; 
-  margin: 0; 
-  text-align: center;
+  font-family:sans-serif; 
+  background:#020617; 
+  color:#e6edf3; 
+  text-align:center; 
+  margin:0;
 }
 
 header {
-  padding: 15px;
-  background: rgba(0,0,0,0.5);
-  color: var(--blue);
-  font-weight: bold;
+  padding:15px;
+  background:rgba(0,0,0,0.5);
+  color:var(--blue);
+  font-weight:bold;
 }
 
 #reader {
-  width: 90%;
-  max-width: 400px;
-  margin: 20px auto;
+  width:90%;
+  max-width:400px;
+  margin:20px auto;
 }
 
-#statusText {
-  margin-top: 10px;
-  opacity: 0.8;
-}
+#statusText { margin-top:10px; }
 
 #result {
-  width: 90%;
-  max-width: 400px;
-  margin: 20px auto;
-  padding: 15px;
-  border-radius: 12px;
-  display: none;
+  width:90%;
+  max-width:400px;
+  margin:20px auto;
+  padding:15px;
+  border-radius:12px;
+  display:none;
 }
 
 .success { border:1px solid var(--green); color:var(--green); }
-.error { border:1px solid var(--red); color:var(--red); }
 .warning { border:1px solid var(--yellow); color:var(--yellow); }
+.error { border:1px solid var(--red); color:var(--red); }
 
 button {
   padding:10px 15px;
@@ -60,7 +57,11 @@ button {
   border:none;
   border-radius:8px;
   cursor:pointer;
+  font-weight:bold;
 }
+
+#updateBtn { background:var(--yellow); }
+#restartBtn { background:var(--blue); color:#000; }
 </style>
 </head>
 
@@ -69,18 +70,27 @@ button {
 <header>QR CHECKER PRO</header>
 
 <div id="reader"></div>
-<p id="statusText">🔍 กำลังเตรียมกล้อง...</p>
+<p id="statusText">🔍 กำลังเตรียม...</p>
 
 <div id="result"></div>
 
-<button onclick="restartScan()">🔄 สแกนใหม่</button>
+<div>
+  <button id="updateBtn" onclick="updateLocation()" style="display:none;">
+    📍 อัปเดทพิกัด
+  </button>
+  <button id="restartBtn" onclick="restartScan()">
+    🔄 สแกนใหม่
+  </button>
+</div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbxwp63522RTGXFXcpfiqhmJmPEKpYDol5yzRIxRjDo9T5LMZ-P0crY6l0CFsyFMtdVgCw/exec";
+const FIND_API = "https://script.google.com/macros/s/AKfycbxwp63522RTGXFXcpfiqhmJmPEKpYDol5yzRIxRjDo9T5LMZ-P0crY6l0CFsyFMtdVgCw/exec";
+const UPDATE_API = "https://script.google.com/macros/s/AKfycbxbdQjDtu6da-JIuhHUAVGhohViHvVVALMkIJZItMZWiXUatCR2Sk3U7T4ka8qsUD7N6A/exec";
 
-let userCoords = { lat: 0, lon: 0 };
+let userCoords = { lat:0, lon:0 };
 let scanning = true;
 let html5QrCode;
+let currentRow = null;
 
 // -------------------
 // 📍 GPS
@@ -90,29 +100,26 @@ navigator.geolocation.watchPosition(
     userCoords.lat = pos.coords.latitude;
     userCoords.lon = pos.coords.longitude;
   },
-  err => {
-    console.warn("GPS error:", err);
-  },
-  { enableHighAccuracy: true }
+  err => console.warn(err),
+  { enableHighAccuracy:true }
 );
 
 // -------------------
-// 📷 START CAMERA
+// 📷 START SCAN
 // -------------------
 async function startScanner() {
-  document.getElementById("statusText").innerText = "🔍 กำลังสแกน QR...";
+  document.getElementById("statusText").innerText = "🔍 กำลังสแกน...";
 
   html5QrCode = new Html5Qrcode("reader");
 
   try {
     await html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 15, qrbox: 250 },
+      { facingMode:"environment" },
+      { fps:15, qrbox:250 },
       onScanSuccess
     );
   } catch (err) {
-    console.error(err);
-    document.getElementById("statusText").innerText = "❌ เปิดกล้องไม่สำเร็จ";
+    document.getElementById("statusText").innerText = "❌ เปิดกล้องไม่ได้";
   }
 }
 
@@ -121,20 +128,18 @@ async function startScanner() {
 // -------------------
 async function onScanSuccess(decodedText) {
   if (!scanning) return;
-
   scanning = false;
 
   const status = document.getElementById("statusText");
   const result = document.getElementById("result");
+  const updateBtn = document.getElementById("updateBtn");
 
   status.innerText = "⏳ กำลังตรวจสอบ...";
 
-  try {
-    await html5QrCode.stop();
-  } catch(e) {}
+  try { await html5QrCode.stop(); } catch(e){}
 
   try {
-    const res = await fetch(API_URL + "?url=" + encodeURIComponent(decodedText));
+    const res = await fetch(FIND_API + "?url=" + encodeURIComponent(decodedText));
     const data = await res.json();
 
     result.style.display = "block";
@@ -145,7 +150,9 @@ async function onScanSuccess(decodedText) {
       return;
     }
 
-    // 📏 คำนวณระยะ
+    currentRow = data.row;
+    updateBtn.style.display = "inline-block";
+
     const d = getDistance(
       userCoords.lat,
       userCoords.lon,
@@ -169,14 +176,49 @@ async function onScanSuccess(decodedText) {
       `;
     }
 
-    status.innerText = "✅ ตรวจสอบเสร็จแล้ว";
+    status.innerText = "✅ ตรวจสอบแล้ว";
 
   } catch (err) {
     console.error(err);
-
     result.className = "error";
     result.style.display = "block";
     result.innerHTML = "❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
+  }
+}
+
+// -------------------
+// 📍 UPDATE LOCATION
+// -------------------
+async function updateLocation() {
+  if (!currentRow) {
+    alert("ไม่พบข้อมูล");
+    return;
+  }
+
+  if (!confirm("ต้องการอัปเดทพิกัดนี้ใช่หรือไม่?")) return;
+
+  const status = document.getElementById("statusText");
+  status.innerText = "⏳ กำลังอัปเดท...";
+
+  try {
+    const res = await fetch(
+      UPDATE_API +
+      "?row=" + currentRow +
+      "&lat=" + userCoords.lat +
+      "&lng=" + userCoords.lon
+    );
+
+    const data = await res.json();
+
+    if (data.success) {
+      status.innerText = "✅ อัปเดทพิกัดสำเร็จ";
+    } else {
+      status.innerText = "❌ อัปเดทไม่สำเร็จ";
+    }
+
+  } catch (err) {
+    console.error(err);
+    status.innerText = "❌ เชื่อมต่อไม่ได้";
   }
 }
 
@@ -185,6 +227,7 @@ async function onScanSuccess(decodedText) {
 // -------------------
 function restartScan() {
   document.getElementById("result").style.display = "none";
+  document.getElementById("updateBtn").style.display = "none";
   scanning = true;
   startScanner();
 }
@@ -194,24 +237,19 @@ function restartScan() {
 // -------------------
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLon = (lon2-lon1)*Math.PI/180;
 
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-
-  const a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
+  const a = Math.sin(dLat/2)**2 +
     Math.cos(lat1*Math.PI/180) *
     Math.cos(lat2*Math.PI/180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
+    Math.sin(dLon/2)**2;
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 // -------------------
-// 🚀 INIT
-// -------------------
 window.onload = startScanner;
-
 </script>
 
 </body>
