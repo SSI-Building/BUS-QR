@@ -9,59 +9,137 @@
 
 <style>
 :root { 
-  --blue:#00f2ff; 
-  --green:#39ff14; 
-  --red:#ff3131; 
-  --yellow:#ffcc00;
+  --primary: #60a5fa;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #f8fafc;
 }
 
 body { 
-  font-family:sans-serif; 
-  background:#020617; 
-  color:#e6edf3; 
-  text-align:center; 
-  margin:0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 header {
-  padding:15px;
-  background:rgba(0,0,0,0.5);
-  color:var(--blue);
-  font-weight:bold;
+  padding: 20px;
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  color: var(--primary);
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: center;
+}
+
+.container {
+  padding: 20px;
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 #reader {
-  width:90%;
-  max-width:400px;
-  margin:20px auto;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
 }
 
-#statusText { margin-top:10px; }
+/* ปรับแต่งปุ่มภายใน html5-qrcode ถ้ามี */
+#reader button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  margin: 10px;
+}
+
+.status-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+  font-size: 0.95rem;
+  color: #94a3b8;
+}
 
 #result {
-  width:90%;
-  max-width:400px;
-  margin:20px auto;
-  padding:15px;
-  border-radius:12px;
-  display:none;
+  margin: 20px 0;
+  padding: 20px;
+  border-radius: 16px;
+  display: none;
+  animation: slideUp 0.3s ease-out;
+  text-align: left;
 }
 
-.success { border:1px solid var(--green); color:var(--green); }
-.warning { border:1px solid var(--yellow); color:var(--yellow); }
-.error { border:1px solid var(--red); color:var(--red); }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.success { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); color: #ecfdf5; }
+.warning { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); color: #fffbeb; }
+.error { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: #fef2f2; }
+
+.result-title {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
 
 button {
-  padding:10px 15px;
-  margin:5px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  font-weight:bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s;
 }
 
-#updateBtn { background:var(--yellow); }
-#restartBtn { background:var(--blue); color:#000; }
+button:active { transform: scale(0.98); }
+
+#updateBtn { background: var(--warning); color: #000; }
+#restartBtn { background: var(--primary); color: #fff; }
+
+.icon { width: 20px; height: 20px; fill: currentColor; }
+
+/* SVG Spinner */
+.spinner {
+  animation: rotate 2s linear infinite;
+  width: 20px;
+  height: 20px;
+}
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
 </style>
 </head>
 
@@ -69,21 +147,30 @@ button {
 
 <header>QR CHECKER PRO</header>
 
-<div id="reader"></div>
-<p id="statusText">🔍 กำลังเตรียม...</p>
+<div class="container">
+  <div id="reader"></div>
+  
+  <div id="statusText" class="status-box">
+    <svg class="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="80, 200" stroke-dashoffset="0" stroke-linecap="round"></circle></svg>
+    <span>กำลังเตรียมระบบ...</span>
+  </div>
 
-<div id="result"></div>
+  <div id="result"></div>
 
-<div>
-  <button id="updateBtn" onclick="updateLocation()" style="display:none;">
-    📍 อัปเดทพิกัด
-  </button>
-  <button id="restartBtn" onclick="restartScan()">
-    🔄 สแกนใหม่
-  </button>
+  <div class="btn-group">
+    <button id="updateBtn" onclick="updateLocation()" style="display:none;">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      อัปเดทพิกัดปัจจุบัน
+    </button>
+    <button id="restartBtn" onclick="restartScan()">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      สแกนใหม่อีกครั้ง
+    </button>
+  </div>
 </div>
 
 <script>
+// --- ส่วน Logic คงเดิม แต่ปรับการแสดงผล Text และ SVG ---
 const FIND_API = "https://script.google.com/macros/s/AKfycbxwp63522RTGXFXcpfiqhmJmPEKpYDol5yzRIxRjDo9T5LMZ-P0crY6l0CFsyFMtdVgCw/exec";
 const UPDATE_API = "https://script.google.com/macros/s/AKfycbxbdQjDtu6da-JIuhHUAVGhohViHvVVALMkIJZItMZWiXUatCR2Sk3U7T4ka8qsUD7N6A/exec";
 
@@ -92,9 +179,14 @@ let scanning = true;
 let html5QrCode;
 let currentUrl = "";
 
-// -------------------
-// 📍 GPS
-// -------------------
+// Icon templates
+const icons = {
+  check: '<svg class="icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
+  alert: '<svg class="icon" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
+  error: '<svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
+  loading: '<svg class="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="80, 200" stroke-dashoffset="0" stroke-linecap="round"></circle></svg>'
+};
+
 navigator.geolocation.watchPosition(
   pos => {
     userCoords.lat = pos.coords.latitude;
@@ -104,137 +196,86 @@ navigator.geolocation.watchPosition(
   { enableHighAccuracy:true }
 );
 
-// -------------------
-// 📷 START SCANNER
-// -------------------
 async function startScanner() {
-  document.getElementById("statusText").innerText = "🔍 กำลังสแกน...";
+  setInfo("loading", "กำลังสแกน...");
   html5QrCode = new Html5Qrcode("reader");
-
   try {
-    await html5QrCode.start(
-      { facingMode:"environment" },
-      { fps:15, qrbox:250 },
-      onScanSuccess
-    );
+    await html5QrCode.start({ facingMode:"environment" }, { fps:15, qrbox:250 }, onScanSuccess);
   } catch (err) {
-    console.error(err);
-    document.getElementById("statusText").innerText = "❌ เปิดกล้องไม่ได้";
+    setInfo("error", "เปิดกล้องไม่ได้");
   }
 }
 
-// -------------------
-// ✅ SCAN SUCCESS
-// -------------------
+function setInfo(iconKey, text) {
+  document.getElementById("statusText").innerHTML = `${icons[iconKey]} <span>${text}</span>`;
+}
+
 async function onScanSuccess(decodedText) {
   if (!scanning) return;
   scanning = false;
-
-  const status = document.getElementById("statusText");
+  
   const result = document.getElementById("result");
   const updateBtn = document.getElementById("updateBtn");
-
-  status.innerText = "⏳ กำลังตรวจสอบ...";
-
+  
+  setInfo("loading", "กำลังตรวจสอบข้อมูล...");
   try { await html5QrCode.stop(); } catch(e){}
 
   try {
-    console.log("QR:", decodedText);
-
-    currentUrl = decodedText; // 🔥 เก็บ URL
-
+    currentUrl = decodedText;
     const res = await fetch(FIND_API + "?url=" + encodeURIComponent(decodedText));
     const data = await res.json();
-
-    console.log("API:", data);
 
     result.style.display = "block";
 
     if (!data.found) {
-      currentUrl = "";
-      updateBtn.style.display = "none";
-
       result.className = "error";
-      result.innerHTML = "❌ QR ไม่ถูกต้อง";
+      result.innerHTML = `<div class="result-title">${icons.error} ไม่พบข้อมูล</div>QR นี้ไม่มีอยู่ในฐานข้อมูล`;
+      updateBtn.style.display = "none";
+      setInfo("error", "สแกนไม่สำเร็จ");
       return;
     }
 
-    updateBtn.style.display = "inline-block";
+    updateBtn.style.display = "flex";
+    const d = getDistance(userCoords.lat, userCoords.lon, data.lat, data.lng);
 
-    const d = getDistance(
-      userCoords.lat,
-      userCoords.lon,
-      data.lat,
-      data.lng
-    );
-
-    result.className = d <= 20 ? "success" : "warning";
-    result.innerHTML = `
-      <b>${d<=20?"✅ ติดตั้งถูกต้อง":"⚠️ พิกัดไม่ตรง"}</b><br>
-      📍 ${data.name}<br>
-      ระยะ ${d.toFixed(2)} เมตร
-    `;
-
-    status.innerText = "✅ ตรวจสอบแล้ว";
+    if (d <= 20) {
+      result.className = "success";
+      result.innerHTML = `<div class="result-title">${icons.check} ตำแหน่งถูกต้อง</div>
+                          <b>📍 ${data.name}</b><br><small>ระยะห่าง: ${d.toFixed(2)} เมตร</small>`;
+      setInfo("check", "ตรวจสอบแล้ว");
+    } else {
+      result.className = "warning";
+      result.innerHTML = `<div class="result-title">${icons.alert} พิกัดไม่ตรง</div>
+                          <b>📍 ${data.name}</b><br><small>ระยะห่าง: ${d.toFixed(2)} เมตร</small>`;
+      setInfo("alert", "พิกัดคลาดเคลื่อน");
+    }
 
   } catch (err) {
-    console.error(err);
-
-    currentUrl = "";
-
     result.className = "error";
     result.style.display = "block";
     result.innerHTML = "❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้";
   }
 }
 
-// -------------------
-// 📍 UPDATE LOCATION (ใช้ URL)
-// -------------------
 async function updateLocation() {
+  if (!currentUrl || !userCoords.lat) return alert("ข้อมูลไม่พร้อม");
+  if (!confirm("ยืนยันการอัปเดทพิกัดใหม่ไปยังตำแหน่งปัจจุบันของคุณ?")) return;
 
-  if (!currentUrl) {
-    alert("❌ ต้องสแกนก่อน");
-    return;
-  }
-
-  if (!userCoords.lat || !userCoords.lon) {
-    alert("❌ ยังไม่ได้ตำแหน่ง GPS");
-    return;
-  }
-
-  if (!confirm("ต้องการอัปเดทพิกัดนี้ใช่หรือไม่?")) return;
-
-  const status = document.getElementById("statusText");
-  status.innerText = "⏳ กำลังอัปเดท...";
-
+  setInfo("loading", "กำลังบันทึกพิกัด...");
   try {
-    const res = await fetch(
-      UPDATE_API +
-      "?url=" + encodeURIComponent(currentUrl) +
-      "&lat=" + userCoords.lat +
-      "&lng=" + userCoords.lon
-    );
-
+    const res = await fetch(UPDATE_API + "?url=" + encodeURIComponent(currentUrl) + "&lat=" + userCoords.lat + "&lng=" + userCoords.lon);
     const data = await res.json();
-
-    console.log("UPDATE:", data);
-
     if (data.success) {
-      status.innerText = "✅ อัปเดทสำเร็จ (Row " + data.row + ")";
+      setInfo("check", "อัปเดทพิกัดสำเร็จ");
+      alert("บันทึกข้อมูลเรียบร้อย!");
     } else {
-      status.innerText = "❌ " + data.message;
+      setInfo("error", data.message);
     }
-
   } catch (err) {
-    console.error(err);
-    status.innerText = "❌ เชื่อมต่อไม่ได้";
+    setInfo("error", "เกิดข้อผิดพลาด");
   }
 }
 
-// -------------------
-// 🔄 RESTART
-// -------------------
 function restartScan() {
   document.getElementById("result").style.display = "none";
   document.getElementById("updateBtn").style.display = "none";
@@ -243,23 +284,14 @@ function restartScan() {
   startScanner();
 }
 
-// -------------------
-// 📏 DISTANCE
-// -------------------
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const dLat = (lat2-lat1)*Math.PI/180;
   const dLon = (lon2-lon1)*Math.PI/180;
-
-  const a = Math.sin(dLat/2)**2 +
-    Math.cos(lat1*Math.PI/180) *
-    Math.cos(lat2*Math.PI/180) *
-    Math.sin(dLon/2)**2;
-
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// -------------------
 window.onload = startScanner;
 </script>
 
