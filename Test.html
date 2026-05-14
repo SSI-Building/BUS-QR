@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Rating System - Neon Tech</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0b1e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            text-align: center;
+        }
+
+        h2 {
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+            margin-bottom: 25px;
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid var(--neon-purple) !important;
+        }
+
+        .info-card {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            border-left: 5px solid var(--neon-blue);
+            text-align: left;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .rating-section {
+            margin-top: 20px;
+        }
+
+        .star-btn {
+            font-size: 30px;
+            background: none;
+            border: none;
+            color: #444;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .star-btn.active {
+            color: #ffca08;
+            text-shadow: 0 0 10px #ffca08;
+        }
+
+        button#submit-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            border-radius: 50px;
+            border: none;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Rating Scanner</h2>
+    
+    <!-- ส่วนสแกน QR Code -->
+    <div id="reader"></div>
+
+    <!-- ส่วนแสดงข้อมูลพนักงานที่สแกนได้ -->
+    <div id="employee-info" class="info-card">
+        <h3 id="display-name" style="margin: 0; color: var(--neon-blue);"></h3>
+        <p id="display-position" style="opacity: 0.8; margin: 5px 0 15px 0;"></p>
+        
+        <div class="rating-section">
+            <p>ให้คะแนนการบริการ:</p>
+            <div id="star-container">
+                <button class="star-btn" onclick="setRating(1)">★</button>
+                <button class="star-btn" onclick="setRating(2)">★</button>
+                <button class="star-btn" onclick="setRating(3)">★</button>
+                <button class="star-btn" onclick="setRating(4)">★</button>
+                <button class="star-btn" onclick="setRating(5)">★</button>
+            </div>
+            <button id="submit-btn" onclick="submitRating()">ยืนยันคะแนน</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedRating = 0;
+    let employeeData = {};
+
+    // ตั้งค่า Scanner
+    const html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+
+    function onScanSuccess(decodedText) {
+        // แยกข้อมูลจาก QR Code: พนัดดา,คำทะเนตร,ช่างเทคนิค
+        const data = decodedText.split(',');
+        
+        if(data.length >= 3) {
+            employeeData = {
+                fname: data[0],
+                lname: data[1],
+                position: data[2]
+            };
+
+            // หยุดสแกนชั่วคราวและแสดงหน้าประเมิน
+            document.getElementById('display-name').innerText = `คุณ ${employeeData.fname} ${employeeData.lname}`;
+            document.getElementById('display-position').innerText = `ตำแหน่ง: ${employeeData.position}`;
+            document.getElementById('employee-info').style.display = 'block';
+            document.getElementById('reader').style.display = 'none';
+            
+            html5QrCode.stop();
+        } else {
+            alert("รูปแบบ QR Code ไม่ถูกต้อง");
+        }
+    }
+
+    function setRating(n) {
+        selectedRating = n;
+        const stars = document.querySelectorAll('.star-btn');
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < n);
+        });
+    }
+
+    function submitRating() {
+        if(selectedRating === 0) {
+            alert("กรุณาเลือกคะแนนก่อนยืนยันครับ");
+            return;
+        }
+
+        // แจ้งเตือนข้อมูลตามที่คุณต้องการ
+        const message = `
+            บันทึกสำเร็จ!
+            พนักงาน: ${employeeData.fname} ${employeeData.lname}
+            ตำแหน่ง: ${employeeData.position}
+            คะแนนที่ได้รับ: ${selectedRating} ดาว
+        `;
+        
+        alert(message);
+        
+        // รีเซ็ตหน้าจอเพื่อรับคิวถัดไป
+        location.reload(); 
+    }
+</script>
+
+</body>
+</html>
