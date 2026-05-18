@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Employee Rating QR</title>
+<title>Employee QR Rating System</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -13,178 +12,103 @@
 :root{
     --bg:#0f172a;
     --card:#1e293b;
-    --primary:#60a5fa;
-    --success:#10b981;
-    --danger:#ef4444;
     --text:#f8fafc;
     --muted:#94a3b8;
-    --star-off:#475569;
-    --star-on:#fbbf24;
-}
-
-*{
-    box-sizing:border-box;
+    --primary:#60a5fa;
+    --success:#10b981;
+    --warning:#fbbf24;
 }
 
 body{
     margin:0;
+    font-family:Segoe UI;
     background:var(--bg);
     color:var(--text);
-    font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;
 }
 
 header{
-    padding:20px;
     text-align:center;
-    font-size:1.2rem;
+    padding:18px;
     font-weight:800;
-    letter-spacing:1px;
-
     color:var(--primary);
-
-    background:rgba(30,41,59,.9);
-
-    border-bottom:1px solid rgba(255,255,255,.08);
+    background:rgba(30,41,59,.8);
 }
 
 .container{
-    max-width:550px;
+    max-width:520px;
     margin:auto;
-    padding:20px;
+    padding:18px;
 }
 
 #reader{
-    width:100%;
+    border-radius:16px;
     overflow:hidden;
-    border-radius:18px;
-    border:2px solid rgba(255,255,255,.08);
-    background:#000;
 }
 
-.status-box{
-    margin-top:15px;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:10px;
-
+.status{
+    margin-top:12px;
+    padding:12px;
+    background:var(--card);
+    border-radius:12px;
+    text-align:center;
     color:var(--muted);
-
-    font-size:.95rem;
-}
-
-.spinner{
-    width:18px;
-    height:18px;
-    animation:spin 1.2s linear infinite;
-}
-
-@keyframes spin{
-    100%{
-        transform:rotate(360deg);
-    }
+    font-weight:600;
 }
 
 button{
     width:100%;
+    margin-top:12px;
+    padding:14px;
     border:none;
-    border-radius:14px;
-
-    padding:15px;
-
-    font-size:1rem;
+    border-radius:12px;
     font-weight:700;
-
     cursor:pointer;
-
-    transition:.2s;
-}
-
-button:active{
-    transform:scale(.98);
 }
 
 #processBtn{
-    margin-top:18px;
     background:#2563eb;
     color:white;
 }
 
 #scanCount{
-    margin-top:12px;
     text-align:center;
+    margin-top:10px;
     color:var(--muted);
 }
 
-#result-panel{
-    margin-top:20px;
-}
-
-.employee-row{
-
+.row{
     display:flex;
-    align-items:center;
     justify-content:space-between;
-
-    gap:10px;
-
-    padding:14px 16px;
-
-    margin-bottom:10px;
-
-    border-radius:14px;
-
-    background:var(--card);
-
-    border:1px solid rgba(255,255,255,.08);
-}
-
-.employee-code{
-
-    min-width:120px;
-
-    color:var(--primary);
-
-    font-weight:700;
-
-    font-size:1rem;
-}
-
-.star-container{
-
-    display:flex;
     align-items:center;
-    gap:2px;
+    background:var(--card);
+    padding:12px;
+    border-radius:12px;
+    margin-top:10px;
 }
 
-.star-btn{
+.code{
+    color:var(--primary);
+    font-weight:700;
+}
 
-    border:none;
+.star button{
     background:none;
-
-    width:auto;
-    padding:0;
-
-    font-size:32px;
-
+    border:none;
+    font-size:28px;
     cursor:pointer;
-
-    color:var(--star-off);
+    color:#475569;
 }
 
-.star-btn.active{
-    color:var(--star-on);
+.star button.active{
+    color:#fbbf24;
 }
 
-#submitAllBtn{
-    margin-top:18px;
-    background:var(--success);
+#submitBtn{
+    background:#10b981;
     color:white;
 }
 
 #cancelBtn{
-    margin-top:10px;
     background:transparent;
     border:1px solid #475569;
     color:var(--muted);
@@ -195,345 +119,245 @@ button:active{
 
 <body>
 
-<header>
-    STAFF RATING SYSTEM
-</header>
+<header>STAFF QR RATING SYSTEM</header>
 
 <div class="container">
 
-    <!-- Scanner -->
-    <div id="scanner-section">
+<div id="reader"></div>
 
-        <div id="reader"></div>
+<div id="statusBox" class="status">● Ready to scan</div>
 
-        <div id="statusText" class="status-box">
+<button id="processBtn" onclick="processEmployees()">
+ประมวลผลรายชื่อ
+</button>
 
-            <svg class="spinner" viewBox="0 0 50 50">
-                <circle
-                    cx="25"
-                    cy="25"
-                    r="20"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="5"
-                    stroke-dasharray="80,200"
-                    stroke-linecap="round">
-                </circle>
-            </svg>
+<div id="scanCount">สแกนแล้ว 0 คน</div>
 
-            <span>กำลังเปิดกล้อง...</span>
-
-        </div>
-
-    </div>
-
-    <!-- Process Button -->
-    <button id="processBtn" onclick="processEmployees()">
-        ประมวลผลรายชื่อ
-    </button>
-
-    <!-- Scan Count -->
-    <div id="scanCount">
-        สแกนแล้ว 0 คน
-    </div>
-
-    <!-- Result -->
-    <div id="result-panel"></div>
+<div id="result"></div>
 
 </div>
 
 <script>
 
-let html5QrCode;
+let scanner;
+let scanned = [];
+let finalList = [];
 
-let scannedEmployees = [];
-
-let finalEmployees = [];
-
-// ================= START CAMERA =================
-
+// ================= CAMERA =================
 async function startScanner(){
 
-    if(html5QrCode){
+    scanner = new Html5Qrcode("reader");
 
-        try{
-            await html5QrCode.stop();
-        }catch(e){}
+    await scanner.start(
+        { facingMode:"environment" },
+        { fps:10, qrbox:250 },
+        onScan
+    );
 
-    }
-
-    html5QrCode = new Html5Qrcode("reader");
-
-    const config = {
-
-        fps:10,
-
-        qrbox:{
-            width:250,
-            height:250
-        },
-
-        aspectRatio:1.0
-    };
-
-    try{
-
-        await html5QrCode.start(
-
-            { facingMode:"environment" },
-
-            config,
-
-            onScanSuccess
-        );
-
-        setStatus("success","พร้อมสแกน QR Code");
-
-    }catch(err){
-
-        console.error(err);
-
-        setStatus("error","ไม่สามารถเปิดกล้องได้");
-
-    }
+    setStatus("idle","");
 }
 
 // ================= STATUS =================
-
 function setStatus(type,text){
 
-    const el = document.getElementById("statusText");
+    const el = document.getElementById("statusBox");
 
-    let icon = '';
-
-    if(type === "success"){
-        icon = "✅";
+    if(type==="idle"){
+        el.innerHTML = "● Ready to scan";
+        el.style.color="#94a3b8";
     }
 
-    if(type === "error"){
-        icon = "❌";
+    if(type==="scan"){
+        el.innerHTML = "⟳ Processing...";
+        el.style.color="#fbbf24";
     }
 
-    if(type === "loading"){
-
-        icon = `
-        <svg class="spinner" viewBox="0 0 50 50">
-            <circle
-                cx="25"
-                cy="25"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="5"
-                stroke-dasharray="80,200"
-                stroke-linecap="round">
-            </circle>
-        </svg>`;
+    if(type==="success"){
+        el.innerHTML = "✔ " + text;
+        el.style.color="#10b981";
     }
-
-    el.innerHTML = `${icon} <span>${text}</span>`;
 }
 
-// ================= SCAN SUCCESS =================
+// ================= SCAN =================
+async function onScan(decodedText){
 
-async function onScanSuccess(decodedText){
+    setStatus("scan","");
 
-    html5QrCode.pause(true);
+    await scanner.pause();
 
-    const employeeCode = decodedText.trim();
+    const code = decodedText.trim();
 
-    const duplicate = scannedEmployees.find(emp =>
-        emp.code === employeeCode
-    );
+    // ================= VALIDATION =================
+    const isValid = /^\d{8}$/.test(code);
 
-    if(duplicate){
+    if(!isValid){
 
-        setStatus(
-            "error",
-            `รหัส ${employeeCode} ถูกสแกนแล้ว`
-        );
+        setStatus("error","รูปแบบ QR ไม่ถูกต้อง");
 
-    }else{
+        setTimeout(()=>{
 
-        scannedEmployees.push({
+            setStatus("idle","");
+            scanner.resume();
 
-            code:employeeCode,
-            rating:0
-
-        });
-
-        updateScanCount();
-
-        setStatus(
-            "success",
-            `เพิ่ม ${employeeCode} แล้ว`
-        );
-    }
-
-    setTimeout(()=>{
-
-        html5QrCode.resume();
-
-    },1000);
-}
-
-// ================= UPDATE COUNT =================
-
-function updateScanCount(){
-
-    document.getElementById("scanCount").innerHTML =
-        `สแกนแล้ว ${scannedEmployees.length} คน`;
-}
-
-// ================= PROCESS =================
-
-function processEmployees(){
-
-    if(scannedEmployees.length === 0){
-
-        alert("ยังไม่มีข้อมูลที่สแกน");
+        },1000);
 
         return;
     }
 
-    finalEmployees = [...scannedEmployees];
+    // ================= DUPLICATE CHECK =================
+    const dup = scanned.find(e => e.code === code);
 
-    document.getElementById("scanner-section").style.display = "none";
+    if(!dup){
 
-    document.getElementById("processBtn").style.display = "none";
+        scanned.push({
+            code:code,
+            rating:0
+        });
 
-    document.getElementById("scanCount").style.display = "none";
+        updateCount();
+    }
 
-    renderEmployees();
+    setStatus("success",code);
+
+    setTimeout(()=>{
+
+        setStatus("idle","");
+        scanner.resume();
+
+    },700);
+}
+// ================= COUNT =================
+function updateCount(){
+    document.getElementById("scanCount").innerText =
+        "สแกนแล้ว " + scanned.length + " คน";
+}
+
+// ================= PROCESS =================
+function processEmployees(){
+
+    if(scanned.length===0){
+        alert("ยังไม่มีข้อมูล");
+        return;
+    }
+
+    finalList = [...scanned];
+
+    document.getElementById("reader").style.display="none";
+    document.getElementById("processBtn").style.display="none";
+    document.getElementById("scanCount").style.display="none";
+
+    render();
 }
 
 // ================= RENDER =================
+function render(){
 
-function renderEmployees(){
+    const box = document.getElementById("result");
 
-    const panel = document.getElementById("result-panel");
+    box.innerHTML = "";
 
-    panel.innerHTML = "";
+    finalList.forEach((e,i)=>{
 
-    finalEmployees.forEach((emp,index)=>{
+        let stars = "";
 
-        const stars = [1,2,3,4,5].map(n=>{
+        for(let n=1;n<=5;n++){
 
-            return `
-                <button
-                    class="star-btn ${n <= emp.rating ? 'active' : ''}"
-                    onclick="setRating(${index},${n})">
+            stars += `
+                <span
+                    onclick="rate(${i},${n})"
+                    style="
+                        font-size:30px;
+                        cursor:pointer;
+                        color:${n<=e.rating ? '#fbbf24' : '#475569'};
+                        margin-left:2px;
+                    ">
                     ★
-                </button>
+                </span>
             `;
+        }
 
-        }).join('');
+        box.innerHTML += `
+        <div style="
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
 
-        panel.innerHTML += `
+            background:#1e293b;
+            padding:12px 14px;
+            margin-top:10px;
 
-            <div class="employee-row">
+            border-radius:12px;
 
-                <div class="employee-code">
-                    ${emp.code}
-                </div>
+            font-family:monospace;
+        ">
 
-                <div class="star-container">
-                    ${stars}
-                </div>
-
+            <!-- CODE -->
+            <div style="
+                min-width:120px;
+                color:#60a5fa;
+                font-weight:700;
+                letter-spacing:1px;
+            ">
+                ${e.code}
             </div>
 
+            <!-- STARS -->
+            <div style="
+                display:flex;
+                flex-wrap:nowrap;
+            ">
+                ${stars}
+            </div>
+
+        </div>
         `;
     });
 
-    panel.innerHTML += `
-
-        <button
-            id="submitAllBtn"
-            onclick="sendAllData()">
-
-            ส่งข้อมูลทั้งหมด
-
+    box.innerHTML += `
+        <button onclick="send()" style="
+            margin-top:15px;
+            background:#10b981;
+            color:white;
+        ">
+            ส่งข้อมูล
         </button>
 
-        <button
-            id="cancelBtn"
-            onclick="restartAll()">
-
-            ยกเลิก
-
+        <button onclick="location.reload()" style="
+            margin-top:10px;
+            background:transparent;
+            border:1px solid #475569;
+            color:#94a3b8;
+        ">
+            เริ่มใหม่
         </button>
     `;
 }
 
-// ================= SET RATING =================
-
-function setRating(index,rating){
-
-    finalEmployees[index].rating = rating;
-
-    renderEmployees();
+// ================= RATE =================
+function rate(i,n){
+    finalList[i].rating=n;
+    render();
 }
 
 // ================= SEND =================
+function send(){
 
-function sendAllData(){
+    const empty = finalList.find(e=>e.rating===0);
 
-    const noRating = finalEmployees.find(emp =>
-        emp.rating === 0
-    );
-
-    if(noRating){
-
-        alert("กรุณาให้คะแนนให้ครบทุกคน");
-
+    if(empty){
+        alert("ให้คะแนนไม่ครบ");
         return;
     }
 
-    console.log(finalEmployees);
+    alert("ส่งข้อมูลสำเร็จ");
 
-    let summary = "ส่งข้อมูลเรียบร้อย\n\n";
+    console.log(finalList);
 
-    finalEmployees.forEach(emp=>{
-
-        summary +=
-            `${emp.code}\n` +
-            `คะแนน ${emp.rating} ดาว\n\n`;
-
-    });
-
-    alert(summary);
-
-    restartAll();
-}
-
-// ================= RESET =================
-
-function restartAll(){
-
-    scannedEmployees = [];
-
-    finalEmployees = [];
-
-    document.getElementById("result-panel").innerHTML = "";
-
-    document.getElementById("scanner-section").style.display = "block";
-
-    document.getElementById("processBtn").style.display = "block";
-
-    document.getElementById("scanCount").style.display = "block";
-
-    updateScanCount();
+    location.reload();
 }
 
 // ================= START =================
-
-window.onload = ()=>{
-
-    startScanner();
-
-    updateScanCount();
-};
+window.onload=startScanner;
 
 </script>
 
