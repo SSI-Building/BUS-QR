@@ -3,274 +3,538 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Employee Rating - QR System</title>
+
+<title>Employee Rating QR</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-:root { 
-  --primary: #60a5fa;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --bg: #0f172a;
-  --card: #1e293b;
-  --text: #f8fafc;
-  --star-off: #475569;
-  --star-on: #fbbf24;
+
+:root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --primary:#60a5fa;
+    --success:#10b981;
+    --danger:#ef4444;
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --star-off:#475569;
+    --star-on:#fbbf24;
 }
 
-body { 
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+*{
+    box-sizing:border-box;
 }
 
-header {
-  padding: 20px;
-  background: rgba(30, 41, 59, 0.8);
-  backdrop-filter: blur(10px);
-  color: var(--primary);
-  font-weight: 800;
-  font-size: 1.2rem;
-  letter-spacing: 1px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  text-align: center;
+body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;
 }
 
-.container {
-  padding: 20px;
-  max-width: 500px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
+header{
+    padding:20px;
+    text-align:center;
+    font-size:1.2rem;
+    font-weight:800;
+    letter-spacing:1px;
+
+    color:var(--primary);
+
+    background:rgba(30,41,59,.9);
+
+    border-bottom:1px solid rgba(255,255,255,.08);
 }
 
-#reader {
-  width: 100%;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.1);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-  background: #000;
+.container{
+    max-width:550px;
+    margin:auto;
+    padding:20px;
 }
 
-.status-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: 20px 0;
-  font-size: 0.95rem;
-  color: #94a3b8;
+#reader{
+    width:100%;
+    overflow:hidden;
+    border-radius:18px;
+    border:2px solid rgba(255,255,255,.08);
+    background:#000;
 }
 
-#result-panel {
-  margin: 20px 0;
-  padding: 25px;
-  border-radius: 16px;
-  display: none;
-  animation: slideUp 0.3s ease-out;
-  text-align: center;
-  background: var(--card);
-  border: 1px solid rgba(255,255,255,0.1);
+.status-box{
+    margin-top:15px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+
+    color:var(--muted);
+
+    font-size:.95rem;
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.spinner{
+    width:18px;
+    height:18px;
+    animation:spin 1.2s linear infinite;
 }
 
-.emp-name { font-size: 1.4rem; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
-.emp-pos { font-size: 1rem; color: #94a3b8; margin-bottom: 20px; }
-
-/* Rating Stars */
-.star-group {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 25px;
-}
-.star-btn {
-  font-size: 40px;
-  background: none;
-  border: none;
-  color: var(--star-off);
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-.star-btn.active { color: var(--star-on); transform: scale(1.1); }
-
-button {
-  width: 100%;
-  padding: 16px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.2s;
+@keyframes spin{
+    100%{
+        transform:rotate(360deg);
+    }
 }
 
-#submitBtn { background: var(--success); color: white; margin-bottom: 10px; }
-#cancelBtn { background: transparent; color: #94a3b8; border: 1px solid #475569; }
+button{
+    width:100%;
+    border:none;
+    border-radius:14px;
 
-button:active { transform: scale(0.98); }
+    padding:15px;
 
-.icon { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
+    font-size:1rem;
+    font-weight:700;
 
-/* SVG Spinner */
-.spinner {
-  animation: rotate 2s linear infinite;
-  width: 20px; height: 20px;
+    cursor:pointer;
+
+    transition:.2s;
 }
-@keyframes rotate { 100% { transform: rotate(360deg); } }
+
+button:active{
+    transform:scale(.98);
+}
+
+#processBtn{
+    margin-top:18px;
+    background:#2563eb;
+    color:white;
+}
+
+#scanCount{
+    margin-top:12px;
+    text-align:center;
+    color:var(--muted);
+}
+
+#result-panel{
+    margin-top:20px;
+}
+
+.employee-row{
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    gap:10px;
+
+    padding:14px 16px;
+
+    margin-bottom:10px;
+
+    border-radius:14px;
+
+    background:var(--card);
+
+    border:1px solid rgba(255,255,255,.08);
+}
+
+.employee-code{
+
+    min-width:120px;
+
+    color:var(--primary);
+
+    font-weight:700;
+
+    font-size:1rem;
+}
+
+.star-container{
+
+    display:flex;
+    align-items:center;
+    gap:2px;
+}
+
+.star-btn{
+
+    border:none;
+    background:none;
+
+    width:auto;
+    padding:0;
+
+    font-size:32px;
+
+    cursor:pointer;
+
+    color:var(--star-off);
+}
+
+.star-btn.active{
+    color:var(--star-on);
+}
+
+#submitAllBtn{
+    margin-top:18px;
+    background:var(--success);
+    color:white;
+}
+
+#cancelBtn{
+    margin-top:10px;
+    background:transparent;
+    border:1px solid #475569;
+    color:var(--muted);
+}
+
 </style>
 </head>
 
 <body>
 
-<header>STAFF RATING SYSTEM</header>
+<header>
+    STAFF RATING SYSTEM
+</header>
 
 <div class="container">
-  <!-- ส่วนสแกน -->
-  <div id="scanner-section">
-    <div id="reader"></div>
-    <div id="statusText" class="status-box">
-      <svg class="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="80, 200" stroke-dashoffset="0" stroke-linecap="round"></circle></svg>
-      <span>กำลังเปิดกล้อง...</span>
-    </div>
-  </div>
 
-  <!-- ส่วนแสดงผลและประเมิน -->
-  <div id="result-panel">
-    <div id="emp-info">
-        <div class="emp-name" id="disp-name">พนัดดา คำทะเนตร</div>
-        <div class="emp-pos" id="disp-pos">ช่างเทคนิค</div>
-    </div>
-    
-    <div class="star-group" id="star-container">
-        <button class="star-btn" onclick="setRating(1)">★</button>
-        <button class="star-btn" onclick="setRating(2)">★</button>
-        <button class="star-btn" onclick="setRating(3)">★</button>
-        <button class="star-btn" onclick="setRating(4)">★</button>
-        <button class="star-btn" onclick="setRating(5)">★</button>
+    <!-- Scanner -->
+    <div id="scanner-section">
+
+        <div id="reader"></div>
+
+        <div id="statusText" class="status-box">
+
+            <svg class="spinner" viewBox="0 0 50 50">
+                <circle
+                    cx="25"
+                    cy="25"
+                    r="20"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="5"
+                    stroke-dasharray="80,200"
+                    stroke-linecap="round">
+                </circle>
+            </svg>
+
+            <span>กำลังเปิดกล้อง...</span>
+
+        </div>
+
     </div>
 
-    <button id="submitBtn" onclick="sendData()">
-        ยืนยันการให้คะแนน
+    <!-- Process Button -->
+    <button id="processBtn" onclick="processEmployees()">
+        ประมวลผลรายชื่อ
     </button>
-    <button id="cancelBtn" onclick="restartScan()">ยกเลิก</button>
-  </div>
-</div>
-<div id="emp-info">
-    <div class="emp-name" id="disp-name" style="text-align: left; font-size: 1.1rem;"></div>
-    <div class="emp-pos" id="disp-pos" style="text-align: left; font-size: 1.1rem; color: #f8fafc;"></div>
+
+    <!-- Scan Count -->
+    <div id="scanCount">
+        สแกนแล้ว 0 คน
+    </div>
+
+    <!-- Result -->
+    <div id="result-panel"></div>
+
 </div>
 
 <script>
-let html5QrCode;
-let currentEmployee = null;
-let selectedRating = 0;
 
-// ฟังก์ชันเริ่มต้นกล้อง
-async function startScanner() {
+let html5QrCode;
+
+let scannedEmployees = [];
+
+let finalEmployees = [];
+
+// ================= START CAMERA =================
+
+async function startScanner(){
+
+    if(html5QrCode){
+
+        try{
+            await html5QrCode.stop();
+        }catch(e){}
+
+    }
+
     html5QrCode = new Html5Qrcode("reader");
-    const config = { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+
+    const config = {
+
+        fps:10,
+
+        qrbox:{
+            width:250,
+            height:250
+        },
+
+        aspectRatio:1.0
     };
 
-    try {
+    try{
+
         await html5QrCode.start(
-            { facingMode: "environment" }, 
-            config, 
+
+            { facingMode:"environment" },
+
+            config,
+
             onScanSuccess
         );
-        setStatus("success", "พร้อมสแกน QR Code");
-    } catch (err) {
+
+        setStatus("success","พร้อมสแกน QR Code");
+
+    }catch(err){
+
         console.error(err);
-        setStatus("error", "ไม่สามารถเข้าถึงกล้องได้ (โปรดใช้ HTTPS)");
+
+        setStatus("error","ไม่สามารถเปิดกล้องได้");
+
     }
 }
 
-function setStatus(type, text) {
-    const statusBox = document.getElementById("statusText");
+// ================= STATUS =================
+
+function setStatus(type,text){
+
+    const el = document.getElementById("statusText");
+
     let icon = '';
-    if(type === 'success') icon = '✅';
-    if(type === 'error') icon = '❌';
-    if(type === 'loading') icon = '<svg class="spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-dasharray="80, 200" stroke-dashoffset="0" stroke-linecap="round"></circle></svg>';
-    
-    statusBox.innerHTML = `${icon} <span>${text}</span>`;
-}
 
-async function onScanSuccess(decodedText) {
-    // 1. ล้างอักขระขยะ () ออกให้หมด โดยกรองเอาเฉพาะตัวอักษรไทย อังกฤษ ตัวเลข และเครื่องหมาย /
-    const cleanText = decodedText.replace(/[^\u0E00-\u0E7F\ a-zA-Z0-9/]/g, '').trim();
-    
-    // 2. แยกข้อมูลด้วย / 
-    const data = cleanText.split('/');
-    
-    if(data.length >= 3) {
-        currentEmployee = {
-            fname: data[0].trim(),
-            lname: data[1].trim(),
-            position: data[2].trim()
-        };
-
-        try { await html5QrCode.stop(); } catch(e) {}
-        
-        document.getElementById("scanner-section").style.display = "none";
-        document.getElementById("result-panel").style.display = "block";
-        
-        // 3. แสดงผล: เว้นวรรค 3 ครั้งระหว่างชื่อ-นามสกุล โดยใช้ &nbsp; (Non-Breaking Space)
-        // &nbsp;&nbsp;&nbsp; คือการทำเว้นวรรค 3 ครั้งในหน้าเว็บครับ
-        document.getElementById("disp-name").innerHTML = `ชื่อพนักงาน: ${currentEmployee.fname}&nbsp;&nbsp;&nbsp;${currentEmployee.lname}`;
-        
-        // 4. ส่วนตำแหน่ง ตัดอักขระขยะออกเรียบร้อยแล้ว แสดงผลปกติ
-        document.getElementById("disp-pos").innerHTML = `ตำแหน่ง: ${currentEmployee.position}`;
-        
-    } else {
-        alert("รูปแบบ QR Code ไม่ถูกต้อง (ต้องเป็น ชื่อ/นามสกุล/ตำแหน่ง)");
-        restartScan();
+    if(type === "success"){
+        icon = "✅";
     }
+
+    if(type === "error"){
+        icon = "❌";
+    }
+
+    if(type === "loading"){
+
+        icon = `
+        <svg class="spinner" viewBox="0 0 50 50">
+            <circle
+                cx="25"
+                cy="25"
+                r="20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="5"
+                stroke-dasharray="80,200"
+                stroke-linecap="round">
+            </circle>
+        </svg>`;
+    }
+
+    el.innerHTML = `${icon} <span>${text}</span>`;
 }
 
-function setRating(n) {
-    selectedRating = n;
-    const stars = document.querySelectorAll('.star-btn');
-    stars.forEach((s, i) => {
-        s.classList.toggle('active', i < n);
+// ================= SCAN SUCCESS =================
+
+async function onScanSuccess(decodedText){
+
+    html5QrCode.pause(true);
+
+    const employeeCode = decodedText.trim();
+
+    const duplicate = scannedEmployees.find(emp =>
+        emp.code === employeeCode
+    );
+
+    if(duplicate){
+
+        setStatus(
+            "error",
+            `รหัส ${employeeCode} ถูกสแกนแล้ว`
+        );
+
+    }else{
+
+        scannedEmployees.push({
+
+            code:employeeCode,
+            rating:0
+
+        });
+
+        updateScanCount();
+
+        setStatus(
+            "success",
+            `เพิ่ม ${employeeCode} แล้ว`
+        );
+    }
+
+    setTimeout(()=>{
+
+        html5QrCode.resume();
+
+    },1000);
+}
+
+// ================= UPDATE COUNT =================
+
+function updateScanCount(){
+
+    document.getElementById("scanCount").innerHTML =
+        `สแกนแล้ว ${scannedEmployees.length} คน`;
+}
+
+// ================= PROCESS =================
+
+function processEmployees(){
+
+    if(scannedEmployees.length === 0){
+
+        alert("ยังไม่มีข้อมูลที่สแกน");
+
+        return;
+    }
+
+    finalEmployees = [...scannedEmployees];
+
+    document.getElementById("scanner-section").style.display = "none";
+
+    document.getElementById("processBtn").style.display = "none";
+
+    document.getElementById("scanCount").style.display = "none";
+
+    renderEmployees();
+}
+
+// ================= RENDER =================
+
+function renderEmployees(){
+
+    const panel = document.getElementById("result-panel");
+
+    panel.innerHTML = "";
+
+    finalEmployees.forEach((emp,index)=>{
+
+        const stars = [1,2,3,4,5].map(n=>{
+
+            return `
+                <button
+                    class="star-btn ${n <= emp.rating ? 'active' : ''}"
+                    onclick="setRating(${index},${n})">
+                    ★
+                </button>
+            `;
+
+        }).join('');
+
+        panel.innerHTML += `
+
+            <div class="employee-row">
+
+                <div class="employee-code">
+                    ${emp.code}
+                </div>
+
+                <div class="star-container">
+                    ${stars}
+                </div>
+
+            </div>
+
+        `;
     });
+
+    panel.innerHTML += `
+
+        <button
+            id="submitAllBtn"
+            onclick="sendAllData()">
+
+            ส่งข้อมูลทั้งหมด
+
+        </button>
+
+        <button
+            id="cancelBtn"
+            onclick="restartAll()">
+
+            ยกเลิก
+
+        </button>
+    `;
 }
 
-function sendData() {
-    if(selectedRating === 0) return alert("โปรดเลือกคะแนนดาว");
-    
-    // แจ้งเตือนตามโจทย์
-    const msg = `บันทึกคะแนนเรียบร้อย!\n\nพนักงาน: ${currentEmployee.fname}\nคะแนน: ${selectedRating} ดาว`;
-    alert(msg);
-    
-    // รีเซ็ตกลับไปหน้าสแกน
-    restartScan();
+// ================= SET RATING =================
+
+function setRating(index,rating){
+
+    finalEmployees[index].rating = rating;
+
+    renderEmployees();
 }
 
-function restartScan() {
-    currentEmployee = null;
-    selectedRating = 0;
-    document.querySelectorAll('.star-btn').forEach(s => s.classList.remove('active'));
+// ================= SEND =================
+
+function sendAllData(){
+
+    const noRating = finalEmployees.find(emp =>
+        emp.rating === 0
+    );
+
+    if(noRating){
+
+        alert("กรุณาให้คะแนนให้ครบทุกคน");
+
+        return;
+    }
+
+    console.log(finalEmployees);
+
+    let summary = "ส่งข้อมูลเรียบร้อย\n\n";
+
+    finalEmployees.forEach(emp=>{
+
+        summary +=
+            `${emp.code}\n` +
+            `คะแนน ${emp.rating} ดาว\n\n`;
+
+    });
+
+    alert(summary);
+
+    restartAll();
+}
+
+// ================= RESET =================
+
+function restartAll(){
+
+    scannedEmployees = [];
+
+    finalEmployees = [];
+
+    document.getElementById("result-panel").innerHTML = "";
+
     document.getElementById("scanner-section").style.display = "block";
-    document.getElementById("result-panel").style.display = "none";
-    startScanner();
+
+    document.getElementById("processBtn").style.display = "block";
+
+    document.getElementById("scanCount").style.display = "block";
+
+    updateScanCount();
 }
 
-// เริ่มทำงาน
-window.onload = startScanner;
+// ================= START =================
+
+window.onload = ()=>{
+
+    startScanner();
+
+    updateScanCount();
+};
+
 </script>
 
 </body>
