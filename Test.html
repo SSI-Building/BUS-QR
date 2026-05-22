@@ -157,10 +157,31 @@ async function onScan(decodedText){
 
     await scanner.pause();
 
-    const code = decodedText.trim();
+    // ================= GET RAW TEXT =================
+    let code = decodedText.trim();
+
+    // ================= REMOVE URL =================
+    // ตัวอย่าง:
+    // https://ssi-building.github.io/BUS-QR/Test.html?id=KSG0244
+    // เหลือ:
+    // KSG0244
+
+    if(code.includes("?id=")){
+
+        code = code.split("?id=")[1];
+    }
+
+    // กัน space หรือ / ติดท้าย
+    code = code.replace(/\//g,"").trim();
 
     // ================= VALIDATION =================
-    const isValid = /^\d{8}$/.test(code);
+    // รองรับ:
+    // K0123
+    // P0734
+    // KSG0244
+    // TLG0159
+
+    const isValid = /^[A-Z0-9]+$/i.test(code);
 
     if(!isValid){
 
@@ -250,8 +271,7 @@ function render(){
             <input
                 type="text"
                 id="evaluatorId"
-                placeholder="เช่น 00100101"
-                maxlength="8"
+                placeholder="เช่น K0123"
                 style="
                     width:100%;
                     padding:12px;
@@ -369,12 +389,12 @@ function send(){
         .value
         .trim();
 
-if(evaluator === ""){
+    if(evaluator === ""){
 
-    alert("กรุณากรอกรหัสพนักงานผู้ประเมิน");
+        alert("กรุณากรอกรหัสพนักงานผู้ประเมิน");
 
-    return;
-}
+        return;
+    }
 
     // ================= CHECK RATING =================
     const empty = finalList.find(e=>e.rating===0);
@@ -393,59 +413,59 @@ if(evaluator === ""){
         data:finalList
     };
 
-console.log(payload);
+    console.log(payload);
 
-// ================= SUCCESS =================
-alert("ส่งข้อมูลสำเร็จ");
+    // ================= SUCCESS =================
+    alert("ส่งข้อมูลสำเร็จ");
 
-// ================= TRY CLOSE TAB =================
-window.open('', '_self');
-window.close();
+    // ================= TRY CLOSE TAB =================
+    window.open('', '_self');
+    window.close();
 
-// ================= FALLBACK =================
-setTimeout(()=>{
+    // ================= FALLBACK =================
+    setTimeout(()=>{
 
-    document.body.innerHTML = `
-        <div style="
-            height:100vh;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            flex-direction:column;
-            background:#0f172a;
-            color:white;
-            font-family:Segoe UI;
-            text-align:center;
-            padding:20px;
-            box-sizing:border-box;
-        ">
-
+        document.body.innerHTML = `
             <div style="
-                font-size:70px;
-                margin-bottom:20px;
+                height:100vh;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                flex-direction:column;
+                background:#0f172a;
+                color:white;
+                font-family:Segoe UI;
+                text-align:center;
+                padding:20px;
+                box-sizing:border-box;
             ">
-                ✔
+
+                <div style="
+                    font-size:70px;
+                    margin-bottom:20px;
+                ">
+                    ✔
+                </div>
+
+                <div style="
+                    font-size:24px;
+                    font-weight:700;
+                    margin-bottom:10px;
+                ">
+                    ดำเนินการเรียบร้อย
+                </div>
+
+                <div style="
+                    color:#94a3b8;
+                    font-size:15px;
+                ">
+                    สามารถปิดหน้านี้ได้เลย
+                </div>
+
             </div>
+        `;
 
-            <div style="
-                font-size:24px;
-                font-weight:700;
-                margin-bottom:10px;
-            ">
-                ดำเนินการเรียบร้อย
-            </div>
-
-            <div style="
-                color:#94a3b8;
-                font-size:15px;
-            ">
-                สามารถปิดหน้านี้ได้เลย
-            </div>
-
-        </div>
-    `;
-
-},500);
+    },500);
 }
 
 // ================= SAVE INPUT =================
