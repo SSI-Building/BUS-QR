@@ -63,6 +63,7 @@ button{
     border-radius:12px;
     font-weight:700;
     cursor:pointer;
+    font-size:16px;
 }
 
 #processBtn{
@@ -76,44 +77,6 @@ button{
     color:var(--muted);
 }
 
-.row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    background:var(--card);
-    padding:12px;
-    border-radius:12px;
-    margin-top:10px;
-}
-
-.code{
-    color:var(--primary);
-    font-weight:700;
-}
-
-.star button{
-    background:none;
-    border:none;
-    font-size:28px;
-    cursor:pointer;
-    color:#475569;
-}
-
-.star button.active{
-    color:#fbbf24;
-}
-
-#submitBtn{
-    background:#10b981;
-    color:white;
-}
-
-#cancelBtn{
-    background:transparent;
-    border:1px solid #475569;
-    color:var(--muted);
-}
-
 </style>
 </head>
 
@@ -123,17 +86,21 @@ button{
 
 <div class="container">
 
-<div id="reader"></div>
+    <div id="reader"></div>
 
-<div id="statusBox" class="status">● Ready to scan</div>
+    <div id="statusBox" class="status">
+        ● Ready to scan
+    </div>
 
-<button id="processBtn" onclick="processEmployees()">
-ประมวลผลรายชื่อ
-</button>
+    <button id="processBtn" onclick="processEmployees()">
+        ประมวลผลรายชื่อ
+    </button>
 
-<div id="scanCount">สแกนแล้ว 0 คน</div>
+    <div id="scanCount">
+        สแกนแล้ว 0 คน
+    </div>
 
-<div id="result"></div>
+    <div id="result"></div>
 
 </div>
 
@@ -164,17 +131,22 @@ function setStatus(type,text){
 
     if(type==="idle"){
         el.innerHTML = "● Ready to scan";
-        el.style.color="#94a3b8";
+        el.style.color = "#94a3b8";
     }
 
     if(type==="scan"){
         el.innerHTML = "⟳ Processing...";
-        el.style.color="#fbbf24";
+        el.style.color = "#fbbf24";
     }
 
     if(type==="success"){
         el.innerHTML = "✔ " + text;
-        el.style.color="#10b981";
+        el.style.color = "#10b981";
+    }
+
+    if(type==="error"){
+        el.innerHTML = "✖ " + text;
+        el.style.color = "#ef4444";
     }
 }
 
@@ -226,8 +198,10 @@ async function onScan(decodedText){
 
     },700);
 }
+
 // ================= COUNT =================
 function updateCount(){
+
     document.getElementById("scanCount").innerText =
         "สแกนแล้ว " + scanned.length + " คน";
 }
@@ -242,9 +216,10 @@ function processEmployees(){
 
     finalList = [...scanned];
 
-    document.getElementById("reader").style.display="none";
-    document.getElementById("processBtn").style.display="none";
-    document.getElementById("scanCount").style.display="none";
+    document.getElementById("reader").style.display = "none";
+    document.getElementById("processBtn").style.display = "none";
+    document.getElementById("scanCount").style.display = "none";
+    document.getElementById("statusBox").style.display = "none";
 
     render();
 }
@@ -256,6 +231,42 @@ function render(){
 
     box.innerHTML = "";
 
+    // ================= EVALUATOR =================
+    box.innerHTML += `
+        <div style="
+            background:#1e293b;
+            padding:14px;
+            border-radius:12px;
+            margin-bottom:12px;
+        ">
+            <div style="
+                margin-bottom:8px;
+                color:#94a3b8;
+                font-size:14px;
+            ">
+                รหัสพนักงานผู้ประเมิน
+            </div>
+
+            <input
+                type="text"
+                id="evaluatorId"
+                placeholder="เช่น 00100101"
+                maxlength="8"
+                style="
+                    width:100%;
+                    padding:12px;
+                    border:none;
+                    border-radius:10px;
+                    background:#0f172a;
+                    color:white;
+                    font-size:16px;
+                    box-sizing:border-box;
+                "
+            >
+        </div>
+    `;
+
+    // ================= EMPLOYEE LIST =================
     finalList.forEach((e,i)=>{
 
         let stars = "";
@@ -313,6 +324,7 @@ function render(){
         `;
     });
 
+    // ================= BUTTONS =================
     box.innerHTML += `
         <button onclick="send()" style="
             margin-top:15px;
@@ -335,29 +347,118 @@ function render(){
 
 // ================= RATE =================
 function rate(i,n){
-    finalList[i].rating=n;
+
+    finalList[i].rating = n;
+
     render();
+
+    // ================= KEEP EVALUATOR VALUE =================
+    const input = document.getElementById("evaluatorId");
+
+    if(input && window.savedEvaluator){
+        input.value = window.savedEvaluator;
+    }
 }
 
 // ================= SEND =================
 function send(){
 
+    // ================= EVALUATOR =================
+    const evaluator =
+        document.getElementById("evaluatorId")
+        .value
+        .trim();
+
+if(evaluator === ""){
+
+    alert("กรุณากรอกรหัสพนักงานผู้ประเมิน");
+
+    return;
+}
+
+    // ================= CHECK RATING =================
     const empty = finalList.find(e=>e.rating===0);
 
     if(empty){
+
         alert("ให้คะแนนไม่ครบ");
+
         return;
     }
 
-    alert("ส่งข้อมูลสำเร็จ");
+    // ================= FINAL DATA =================
+    const payload = {
+        evaluator:evaluator,
+        datetime:new Date().toISOString(),
+        data:finalList
+    };
 
-    console.log(finalList);
+console.log(payload);
 
-    location.reload();
+// ================= SUCCESS =================
+alert("ส่งข้อมูลสำเร็จ");
+
+// ================= TRY CLOSE TAB =================
+window.open('', '_self');
+window.close();
+
+// ================= FALLBACK =================
+setTimeout(()=>{
+
+    document.body.innerHTML = `
+        <div style="
+            height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            flex-direction:column;
+            background:#0f172a;
+            color:white;
+            font-family:Segoe UI;
+            text-align:center;
+            padding:20px;
+            box-sizing:border-box;
+        ">
+
+            <div style="
+                font-size:70px;
+                margin-bottom:20px;
+            ">
+                ✔
+            </div>
+
+            <div style="
+                font-size:24px;
+                font-weight:700;
+                margin-bottom:10px;
+            ">
+                ดำเนินการเรียบร้อย
+            </div>
+
+            <div style="
+                color:#94a3b8;
+                font-size:15px;
+            ">
+                สามารถปิดหน้านี้ได้เลย
+            </div>
+
+        </div>
+    `;
+
+},500);
 }
 
+// ================= SAVE INPUT =================
+document.addEventListener("input",(e)=>{
+
+    if(e.target.id==="evaluatorId"){
+
+        window.savedEvaluator = e.target.value;
+    }
+});
+
 // ================= START =================
-window.onload=startScanner;
+window.onload = startScanner;
 
 </script>
 
