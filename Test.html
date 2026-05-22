@@ -183,35 +183,30 @@ function setStatus(type,text){
 }
 
 // ================= SCAN =================
+// ================= SCAN =================
 async function onScan(decodedText){
 
     setStatus("scan","");
 
     await scanner.pause();
 
-    // ================= GET RAW TEXT =================
-    let code = decodedText.trim();
+    // ================= RAW TEXT =================
+    let raw =
+        decodedText.trim();
 
-    // ================= REMOVE URL =================
-    if(code.includes("?id=")){
+    // ================= VALID URL FORMAT =================
+    const pattern =
+        /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=([A-Z0-9]+)$/i;
 
-        code = code.split("?id=")[1];
-    }
+    const match =
+        raw.match(pattern);
 
-    code = code.replace(/\//g,"").trim();
-
-    // ================= UPPERCASE =================
-    code = code.toUpperCase();
-
-    // ================= VALIDATION =================
-    const isValid =
-        /^[A-Z0-9]+$/i.test(code);
-
-    if(!isValid){
+    // ================= INVALID =================
+    if(!match){
 
         setStatus(
             "error",
-            "รูปแบบ QR ไม่ถูกต้อง"
+            "QR นี้ไม่ใช่รหัสพนักงาน"
         );
 
         setTimeout(()=>{
@@ -223,6 +218,12 @@ async function onScan(decodedText){
 
         return;
     }
+
+    // ================= GET EMPLOYEE CODE =================
+    const code =
+        match[1]
+        .trim()
+        .toUpperCase();
 
     // ================= DUPLICATE CHECK =================
     const dup =
@@ -240,7 +241,10 @@ async function onScan(decodedText){
         updateCount();
     }
 
-    setStatus("success",code);
+    setStatus(
+        "success",
+        code
+    );
 
     setTimeout(()=>{
 
@@ -249,7 +253,6 @@ async function onScan(decodedText){
 
     },700);
 }
-
 // ================= COUNT =================
 function updateCount(){
 
@@ -704,24 +707,19 @@ async function send(){
         });
 
         // ================= SEND =================
-        const res = await fetch(
-            SAVE_API,
-            {
-                method:"POST",
+const res = await fetch(
+    SAVE_API,
+    {
+        method:"POST",
 
-                headers:{
-                    "Content-Type":
-                    "application/json"
-                },
+        body:JSON.stringify({
 
-                body:JSON.stringify({
+            evaluator:evaluator,
 
-                    evaluator:evaluator,
-
-                    data:finalList
-                })
-            }
-        );
+            data:finalList
+        })
+    }
+);
 
         // ================= CHECK RESPONSE =================
         if(!res.ok){
