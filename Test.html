@@ -109,10 +109,10 @@ button{
 
 // ================= EMPLOYEE API =================
 const EMPLOYEE_API =
-"https://script.google.com/macros/s/AKfycbzW5A_aAt2_WdbbhmK6w_IOvNURGwbm230aDJQs_EhgkNaO-gnIXx3btMP6G-kb4FgT/exec";
+"https://script.google.com/macros/s/AKfycbzhisSx0r3qbb7bI4j_E7AFKW3eO3cuUF_al7blEpLLYHEJSZoD8nBCGV5oyRPsbsiR/exec";
 
 const SAVE_API =
-"https://script.google.com/macros/s/AKfycbxoZ9PdtzVOq1kbrhBgpGrkGZ1OuAc3KNbWXxcu4InbYgmvDibZortdCfuZK_fvEPtb/exec";
+"https://script.google.com/macros/s/AKfycbx6PnMEulNFhReOv8dRl3fIJyDuLpR169cPSVAutk1jLcEWRCVbqtmm9dpZAkmPYEJ7/exec";
 
 // ================= VARIABLES =================
 let scanner;
@@ -597,7 +597,64 @@ function rate(i,n){
             window.savedEvaluator;
     }
 }
+//=================เปิดกล้องหน้า==============
+async function captureSelfie(){
 
+    try{
+
+        // ================= OPEN FRONT CAMERA =================
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                video:{
+                    facingMode:"user"
+                }
+            });
+
+        // ================= VIDEO =================
+        const video =
+            document.createElement("video");
+
+        video.srcObject = stream;
+
+        await video.play();
+
+        // ================= WAIT CAMERA READY =================
+        await new Promise(r=>setTimeout(r,800));
+
+        // ================= CANVAS =================
+        const canvas =
+            document.createElement("canvas");
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        const ctx =
+            canvas.getContext("2d");
+
+        ctx.drawImage(
+            video,
+            0,
+            0
+        );
+
+        // ================= STOP CAMERA =================
+        stream
+            .getTracks()
+            .forEach(track=>track.stop());
+
+        // ================= BASE64 =================
+        return canvas.toDataURL(
+            "image/jpeg",
+            0.8
+        );
+
+    }catch(err){
+
+        console.error(err);
+
+        return "";
+    }
+}
 // ================= SEND =================
 async function send(){
 
@@ -705,6 +762,10 @@ async function send(){
             evaluator:evaluator,
             data:finalList
         });
+    
+    // ================= CAPTURE SELFIE =================
+const selfie =
+    await captureSelfie();
 
         // ================= SEND =================
 const res = await fetch(
@@ -715,6 +776,8 @@ const res = await fetch(
         body:JSON.stringify({
 
             evaluator:evaluator,
+
+            selfie:selfie,
 
             data:finalList
         })
