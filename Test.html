@@ -119,6 +119,37 @@ let scanner;
 let scanned = [];
 let finalList = [];
 let employeeMap = {};
+let cameraPermission = false;
+
+// ================= PRELOAD CAMERA PERMISSION =================
+async function preloadCameraPermission(){
+
+    try{
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                video:true
+            });
+
+        stream
+            .getTracks()
+            .forEach(track=>track.stop());
+
+        cameraPermission = true;
+
+        console.log(
+            "Camera permission granted"
+        );
+
+    }catch(err){
+
+        console.log(
+            "Camera permission denied"
+        );
+
+        cameraPermission = false;
+    }
+}
 
 // ================= CAMERA =================
 async function startScanner(){
@@ -126,8 +157,13 @@ async function startScanner(){
     scanner = new Html5Qrcode("reader");
 
     await scanner.start(
-        { facingMode:"environment" },
-        { fps:10, qrbox:250 },
+        {
+            facingMode:"environment"
+        },
+        {
+            fps:10,
+            qrbox:250
+        },
         onScan
     );
 
@@ -142,7 +178,6 @@ function setStatus(type,text){
             "statusBox"
         );
 
-    // ================= FIX NULL =================
     if(!el) return;
 
     if(type==="idle"){
@@ -183,14 +218,12 @@ function setStatus(type,text){
 }
 
 // ================= SCAN =================
-// ================= SCAN =================
 async function onScan(decodedText){
 
     setStatus("scan","");
 
     await scanner.pause();
 
-    // ================= RAW TEXT =================
     let raw =
         decodedText.trim();
 
@@ -219,7 +252,7 @@ async function onScan(decodedText){
         return;
     }
 
-    // ================= GET EMPLOYEE CODE =================
+    // ================= GET CODE =================
     const code =
         match[1]
         .trim()
@@ -234,8 +267,10 @@ async function onScan(decodedText){
     if(!dup){
 
         scanned.push({
+
             code:code,
             rating:0
+
         });
 
         updateCount();
@@ -253,6 +288,7 @@ async function onScan(decodedText){
 
     },700);
 }
+
 // ================= COUNT =================
 function updateCount(){
 
@@ -267,9 +303,13 @@ function updateCount(){
 // ================= LOAD EMPLOYEE =================
 async function loadEmployees(){
 
-    const res = await fetch(EMPLOYEE_API);
+    const res =
+        await fetch(
+            EMPLOYEE_API
+        );
 
-    const data = await res.json();
+    const data =
+        await res.json();
 
     employeeMap = {};
 
@@ -293,13 +333,12 @@ async function processEmployees(){
         return;
     }
 
-    // ================= SHOW LOADING PAGE =================
+    // ================= LOADING =================
     document.body.innerHTML = `
 
         <div style="
             position:fixed;
             inset:0;
-
             background:#0f172a;
 
             display:flex;
@@ -314,7 +353,6 @@ async function processEmployees(){
             color:white;
         ">
 
-            <!-- SPINNER -->
             <div style="
                 width:70px;
                 height:70px;
@@ -327,7 +365,6 @@ async function processEmployees(){
                 animation:spin 1s linear infinite;
             "></div>
 
-            <!-- TEXT -->
             <div style="
                 margin-top:24px;
                 font-size:22px;
@@ -432,6 +469,7 @@ function render(){
 
     // ================= EVALUATOR =================
     box.innerHTML += `
+
         <div style="
             background:#1e293b;
             padding:14px;
@@ -455,10 +493,13 @@ function render(){
                 style="
                     width:100%;
                     padding:12px;
+
                     border:none;
                     border-radius:10px;
+
                     background:#0f172a;
                     color:white;
+
                     font-size:16px;
                     box-sizing:border-box;
                 "
@@ -475,6 +516,7 @@ function render(){
         for(let n=1;n<=5;n++){
 
             stars += `
+
                 <span
                     onclick="rate(${i},${n})"
 
@@ -512,7 +554,6 @@ function render(){
             border-radius:12px;
         ">
 
-            <!-- NAME -->
             <div>
 
                 <div style="
@@ -534,7 +575,6 @@ function render(){
 
             </div>
 
-            <!-- STARS -->
             <div style="
                 display:flex;
                 flex-wrap:nowrap;
@@ -546,7 +586,7 @@ function render(){
         `;
     });
 
-    // ================= BUTTONS =================
+    // ================= BUTTON =================
     box.innerHTML += `
 
         <button
@@ -597,36 +637,54 @@ function rate(i,n){
             window.savedEvaluator;
     }
 }
-//=================เปิดกล้องหน้า==============
+
+// ================= CAPTURE SELFIE =================
 async function captureSelfie(){
 
     try{
 
-        // ================= OPEN FRONT CAMERA =================
         const stream =
             await navigator.mediaDevices.getUserMedia({
+
                 video:{
-                    facingMode:"user"
+                    facingMode:{
+                        ideal:"user"
+                    }
                 }
+
             });
 
-        // ================= VIDEO =================
         const video =
-            document.createElement("video");
+            document.createElement(
+                "video"
+            );
 
-        video.srcObject = stream;
+        video.setAttribute(
+            "playsinline",
+            true
+        );
+
+        video.srcObject =
+            stream;
 
         await video.play();
 
-        // ================= WAIT CAMERA READY =================
-        await new Promise(r=>setTimeout(r,800));
+        // ================= WAIT CAMERA =================
+        await new Promise(
+            r=>setTimeout(r,800)
+        );
 
         // ================= CANVAS =================
         const canvas =
-            document.createElement("canvas");
+            document.createElement(
+                "canvas"
+            );
 
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width =
+            video.videoWidth;
+
+        canvas.height =
+            video.videoHeight;
 
         const ctx =
             canvas.getContext("2d");
@@ -642,7 +700,7 @@ async function captureSelfie(){
             .getTracks()
             .forEach(track=>track.stop());
 
-        // ================= BASE64 =================
+        // ================= RETURN BASE64 =================
         return canvas.toDataURL(
             "image/jpeg",
             0.8
@@ -655,18 +713,21 @@ async function captureSelfie(){
         return "";
     }
 }
+
 // ================= SEND =================
 async function send(){
 
     const evaluator =
         document
-        .getElementById("evaluatorId")
+        .getElementById(
+            "evaluatorId"
+        )
         .value
         .trim()
         .toUpperCase();
 
     // ================= CHECK EVALUATOR =================
-    if(evaluator === ""){
+    if(evaluator===""){
 
         alert(
             "กรุณากรอกรหัสพนักงานผู้ประเมิน"
@@ -678,17 +739,19 @@ async function send(){
     // ================= CHECK RATING =================
     const empty =
         finalList.find(
-            e => e.rating === 0
+            e => e.rating===0
         );
 
     if(empty){
 
-        alert("ให้คะแนนไม่ครบ");
+        alert(
+            "ให้คะแนนไม่ครบ"
+        );
 
         return;
     }
 
-    // ================= LOADING PAGE =================
+    // ================= LOADING =================
     document.body.innerHTML = `
 
         <div style="
@@ -755,40 +818,50 @@ async function send(){
 
     try{
 
-        // ================= DEBUG =================
-        console.log("SEND API:", SAVE_API);
+        // ================= STOP SCANNER =================
+        if(scanner){
 
+            try{
+                await scanner.stop();
+            }catch(e){}
+        }
+
+        // ================= CAPTURE SELFIE =================
+        const selfie =
+            await captureSelfie();
+
+        // ================= DEBUG =================
         console.log({
             evaluator:evaluator,
+            selfie:selfie,
             data:finalList
         });
-    
-    // ================= CAPTURE SELFIE =================
-const selfie =
-    await captureSelfie();
 
         // ================= SEND =================
-const res = await fetch(
-    SAVE_API,
-    {
-        method:"POST",
+        const res =
+            await fetch(
+                SAVE_API,
+                {
 
-        body:JSON.stringify({
+                    method:"POST",
 
-            evaluator:evaluator,
+                    body:JSON.stringify({
 
-            selfie:selfie,
+                        evaluator:evaluator,
 
-            data:finalList
-        })
-    }
-);
+                        selfie:selfie,
+
+                        data:finalList
+                    })
+                }
+            );
 
         // ================= CHECK RESPONSE =================
         if(!res.ok){
 
             throw new Error(
-                "HTTP ERROR : " + res.status
+                "HTTP ERROR : " +
+                res.status
             );
         }
 
@@ -860,7 +933,6 @@ const res = await fetch(
 
         console.error(err);
 
-        // ================= ERROR PAGE =================
         document.body.innerHTML = `
 
             <div style="
@@ -936,6 +1008,7 @@ const res = await fetch(
         `;
     }
 }
+
 // ================= SAVE INPUT =================
 document.addEventListener(
     "input",
@@ -952,7 +1025,14 @@ document.addEventListener(
 );
 
 // ================= START =================
-window.onload = startScanner;
+window.onload = async ()=>{
+
+    // ขอ permission ก่อน
+    await preloadCameraPermission();
+
+    // เปิด scanner
+    startScanner();
+};
 
 </script>
 
