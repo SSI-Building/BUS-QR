@@ -109,10 +109,10 @@ button{
 
 // ================= EMPLOYEE API =================
 const EMPLOYEE_API =
-"https://script.google.com/macros/s/AKfycbzhisSx0r3qbb7bI4j_E7AFKW3eO3cuUF_al7blEpLLYHEJSZoD8nBCGV5oyRPsbsiR/exec";
+"https://script.google.com/macros/s/AKfycbxNNTE57DPtMhM45_z1Qt5WyNhJUr-Gex1IbU4j9XT1UaVq5gTJtfciZdK_eZzi1Zbl/exec";
 
 const SAVE_API =
-"https://script.google.com/macros/s/AKfycbx6PnMEulNFhReOv8dRl3fIJyDuLpR169cPSVAutk1jLcEWRCVbqtmm9dpZAkmPYEJ7/exec";
+"https://script.google.com/macros/s/AKfycbxWcGZALWMcbL4Mjm995BVERa26kUUk6hM-HPWZ7rFyiuxCSM_qHBSERlD4tYVGpBVm/exec";
 
 // ================= VARIABLES =================
 let scanner;
@@ -625,20 +625,17 @@ function rate(i,n){
 }
 
 // ================= CAPTURE SELFIE =================
+// ================= CAPTURE SELFIE (IMPROVED & RESIZED) =================
 async function captureSelfie(){
-
     try{
-
         // ================= STOP BACK CAMERA =================
         if(scanner){
-
             await scanner.stop();
         }
 
         // ================= OPEN FRONT CAMERA =================
         const stream =
             await navigator.mediaDevices.getUserMedia({
-
                 video:{
                     facingMode:{
                         ideal:"user"
@@ -650,52 +647,59 @@ async function captureSelfie(){
             document.createElement(
                 "video"
             );
-
         video.srcObject = stream;
-
         await video.play();
 
-        // ================= WAIT =================
+        // ================= WAIT FOR CAMERA TO STABILIZE =================
         await new Promise(
-            r => setTimeout(r,1000)
+            r => setTimeout(r, 800)
         );
 
-        // ================= CANVAS =================
+        // ================= CANVAS & RESIZING =================
         const canvas =
             document.createElement(
                 "canvas"
             );
+        
+        // กำหนดขนาดสูงสุดที่ต้องการ (ย่อรูปภาพเพื่อลด Payload)
+        const MAX_WIDTH = 400;
+        let width = video.videoWidth;
+        let height = video.videoHeight;
 
-        canvas.width =
-            video.videoWidth;
+        if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+        }
 
-        canvas.height =
-            video.videoHeight;
+        canvas.width = width;
+        canvas.height = height;
 
         const ctx =
             canvas.getContext("2d");
-
+            
+        // วาดรูปแบบย่อขนาด
         ctx.drawImage(
             video,
             0,
-            0
+            0,
+            width,
+            height
         );
 
-        // ================= STOP =================
+        // ================= STOP STREAM =================
         stream
             .getTracks()
             .forEach(track=>track.stop());
 
-        // ================= RETURN BASE64 =================
+        // ================= RETURN BASE64 WITH LOWER QUALITY =================
+        // ปรับคุณภาพลงเหลือ 0.5 เพื่อให้ไฟล์เบาที่สุดและอัปโหลดผ่านแน่นอน
         return canvas.toDataURL(
             "image/jpeg",
-            0.8
+            0.5
         );
 
     }catch(err){
-
-        console.error(err);
-
+        console.error("Selfie Capture Error: ", err);
         return "";
     }
 }
