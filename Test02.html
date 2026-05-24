@@ -1,0 +1,153 @@
+<button onclick="testUpload()">
+UPLOAD TEST
+</button>
+
+<script>
+
+const API =
+"https://script.google.com/macros/s/AKfycbxD1vjQCuiFQvVb6L-t9t7K5GjyR_pfg7lfY8GUohH3hZOYb4S9tZhROxgLOAvfl5jw/exec";
+
+// ================= CAPTURE =================
+async function captureSelfie(){
+
+    try{
+
+        // เปิดกล้องหน้า
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video:{
+                    facingMode:"user",
+                    width:{ ideal:640 },
+                    height:{ ideal:480 }
+                },
+
+                audio:false
+            });
+
+        // ================= VIDEO =================
+        const video =
+            document.createElement("video");
+
+        video.srcObject = stream;
+
+        video.muted = true;
+
+        video.playsInline = true;
+
+        await video.play();
+
+        // รอกล้องพร้อม
+        await new Promise(resolve=>{
+
+            video.onloadedmetadata = ()=>{
+
+                resolve();
+
+            };
+        });
+
+        // รอเพิ่มนิด
+        await new Promise(
+            r=>setTimeout(r,1200)
+        );
+
+        // ================= CANVAS =================
+        const canvas =
+            document.createElement("canvas");
+
+        canvas.width =
+            video.videoWidth;
+
+        canvas.height =
+            video.videoHeight;
+
+        const ctx =
+            canvas.getContext("2d");
+
+        ctx.drawImage(
+            video,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+        // ปิดกล้อง
+        stream
+            .getTracks()
+            .forEach(t=>t.stop());
+
+        // ลดขนาดรูป
+        const base64 =
+            canvas.toDataURL(
+                "image/jpeg",
+                0.4
+            );
+
+        console.log(base64.substring(0,100));
+
+        return base64;
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(err);
+
+        return "";
+    }
+}
+
+// ================= TEST UPLOAD =================
+async function testUpload(){
+
+    try{
+
+        // ถ่ายรูป
+        const selfie =
+            await captureSelfie();
+
+        if(!selfie){
+
+            alert("ถ่ายรูปไม่สำเร็จ");
+
+            return;
+        }
+
+        // ส่งไป Apps Script
+        const res =
+            await fetch(API,{
+
+                method:"POST",
+
+                headers:{
+                    "Content-Type":"text/plain"
+                },
+
+                body:JSON.stringify({
+
+                    selfie:selfie
+
+                })
+            });
+
+        // อ่านผลลัพธ์
+        const text =
+            await res.text();
+
+        console.log(text);
+
+        alert(text);
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(
+            "ERROR : " + err
+        );
+    }
+}
+
+</script>
