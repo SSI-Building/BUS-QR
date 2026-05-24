@@ -12,14 +12,14 @@ async function captureSelfie(){
 
     try{
 
-        // เปิดกล้องหน้า
+        console.log("OPEN CAMERA");
+
+        // เปิดกล้อง
         const stream =
             await navigator.mediaDevices.getUserMedia({
 
                 video:{
-                    facingMode:"user",
-                    width:{ ideal:640 },
-                    height:{ ideal:480 }
+                    facingMode:"user"
                 },
 
                 audio:false
@@ -31,36 +31,26 @@ async function captureSelfie(){
 
         video.srcObject = stream;
 
-        video.muted = true;
+        video.autoplay = true;
 
         video.playsInline = true;
 
-        await video.play();
+        video.muted = true;
 
-        // รอกล้องพร้อม
-        await new Promise(resolve=>{
-
-            video.onloadedmetadata = ()=>{
-
-                resolve();
-
-            };
-        });
-
-        // รอเพิ่มนิด
+        // รอให้กล้องเปิดจริง
         await new Promise(
-            r=>setTimeout(r,1200)
+            r=>setTimeout(r,1500)
         );
+
+        console.log("CAMERA READY");
 
         // ================= CANVAS =================
         const canvas =
             document.createElement("canvas");
 
-        canvas.width =
-            video.videoWidth;
+        canvas.width = 640;
 
-        canvas.height =
-            video.videoHeight;
+        canvas.height = 480;
 
         const ctx =
             canvas.getContext("2d");
@@ -69,23 +59,25 @@ async function captureSelfie(){
             video,
             0,
             0,
-            canvas.width,
-            canvas.height
+            640,
+            480
         );
+
+        console.log("DRAW IMAGE");
 
         // ปิดกล้อง
         stream
             .getTracks()
             .forEach(t=>t.stop());
 
-        // ลดขนาดรูป
+        // ================= BASE64 =================
         const base64 =
             canvas.toDataURL(
                 "image/jpeg",
-                0.4
+                0.3
             );
 
-        console.log(base64.substring(0,100));
+        console.log("BASE64 OK");
 
         return base64;
 
@@ -104,9 +96,13 @@ async function testUpload(){
 
     try{
 
+        console.log("START");
+
         // ถ่ายรูป
         const selfie =
             await captureSelfie();
+
+        console.log("SELFIE READY");
 
         if(!selfie){
 
@@ -115,15 +111,13 @@ async function testUpload(){
             return;
         }
 
+        console.log("FETCH START");
+
         // ส่งไป Apps Script
         const res =
             await fetch(API,{
 
                 method:"POST",
-
-                headers:{
-                    "Content-Type":"text/plain"
-                },
 
                 body:JSON.stringify({
 
@@ -132,7 +126,8 @@ async function testUpload(){
                 })
             });
 
-        // อ่านผลลัพธ์
+        console.log("FETCH DONE");
+
         const text =
             await res.text();
 
