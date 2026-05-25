@@ -105,10 +105,10 @@ button{
 
 // ================= EMPLOYEE API =================
 const EMPLOYEE_API =
-"https://script.google.com/macros/s/AKfycbxNNTE57DPtMhM45_z1Qt5WyNhJUr-Gex1IbU4j9XT1UaVq5gTJtfciZdK_eZzi1Zbl/exec";
+"https://script.google.com/macros/s/AKfycbyq043zH5hch1qhi0DMctbKokrLJrgPNhc8S1fq1XKsoFedt1E5sMVSpMbuCAX2zStNfA/exec";
 
 const SAVE_API =
-"https://script.google.com/macros/s/AKfycbxWcGZALWMcbL4Mjm995BVERa26kUUk6hM-HPWZ7rFyiuxCSM_qHBSERlD4tYVGpBVm/exec";
+"https://script.google.com/macros/s/AKfycbwCWEKxqMGYRhppV36ayZzR_loPk4UgzWhcpnLFX3buGbsl379AF3S_-XJ2jBhXxh7oEA/exec";
 
 // ================= VARIABLES =================
 let scanner;
@@ -828,28 +828,26 @@ async function send(){
             await captureSelfie();
 
         // ================= SEND =================
-        const res =
-            await fetch(
-                SAVE_API,
-                {
+                const formData = new FormData();
 
-                    method:"POST",
-
-                    headers:{
-                        "Content-Type":
-                        "application/json"
-                    },
-
-                    body:JSON.stringify({
+                formData.append(
+                    "payload",
+                    JSON.stringify({
 
                         evaluator:evaluator,
                         selfie:selfie,
                         data:finalList
 
                     })
+                );
 
-                }
-            );
+                const res = await fetch(
+                    SAVE_API,
+                    {
+                        method:"POST",
+                        body:formData
+                    }
+                );
 
         // ================= CHECK RESPONSE =================
         if(!res.ok){
