@@ -1,148 +1,281 @@
-<button onclick="testUpload()">
-UPLOAD TEST
-</button>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rating Dashboard</title>
+
+<style>
+:root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --primary: #60a5fa;
+    --success: #10b981;
+    --warning: #fbbf24;
+    --border: #334155;
+}
+
+body {
+    margin: 0;
+    font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+header {
+    text-align: center;
+    padding: 20px;
+    font-weight: 800;
+    color: var(--primary);
+    background: rgba(30,41,59,.9);
+    letter-spacing: 1px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.container {
+    max-width: 1000px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* --- SUMMARY CARDS --- */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid var(--border);
+}
+
+.stat-title {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--success);
+}
+
+/* --- TABLE --- */
+.table-container {
+    background: var(--card);
+    border-radius: 12px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+th, td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+th {
+    background: rgba(15,23,42,.5);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+/* --- ELEMENTS --- */
+.stars {
+    color: var(--warning);
+    font-size: 16px;
+    letter-spacing: 2px;
+}
+
+.code-badge {
+    background: rgba(96, 165, 250, 0.15);
+    color: var(--primary);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.btn-img {
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.loading {
+    text-align: center;
+    padding: 50px;
+    color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<header>RATING DASHBOARD</header>
+
+<div class="container">
+    
+    <div class="summary-grid">
+        <div class="stat-card">
+            <div class="stat-title">จำนวนการประเมินทั้งหมด</div>
+            <div class="stat-value" id="totalCount">-</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">คะแนนเฉลี่ยรวม</div>
+            <div class="stat-value" id="avgRating" style="color: var(--warning);">-</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>วันที่ - เวลา</th>
+                    <th>รหัสพนักงาน</th>
+                    <th>ชื่อ-สกุล</th>
+                    <th>คะแนน</th>
+                    <th>ผู้ประเมิน</th>
+                    <th>รูปถ่าย</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="6" class="loading">⟳ กำลังโหลดข้อมูล...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
 
 <script>
+// ================= ใส่ URL ของ Apps Script ตรงนี้ =================
+const DASHBOARD_API = "https://script.google.com/macros/s/AKfycbzP9DP86WyhBPWOPpYr2jSXe1lRRO7hZV36AFzZEgM_aywDNtSSijrJv4BGyoYwEe0hmg/exec"; 
 
-const API =
-"https://script.google.com/macros/s/AKfycbxD1vjQCuiFQvVb6L-t9t7K5GjyR_pfg7lfY8GUohH3hZOYb4S9tZhROxgLOAvfl5jw/exec";
+async function loadDashboard() {
+    try {
+        const res = await fetch(DASHBOARD_API + "?t=" + Date.now());
+        const json = await res.json();
 
-// ================= CAPTURE =================
-async function captureSelfie(){
-
-    try{
-
-        console.log("OPEN CAMERA");
-
-        // เปิดกล้อง
-        const stream =
-            await navigator.mediaDevices.getUserMedia({
-
-                video:{
-                    facingMode:"user"
-                },
-
-                audio:false
-            });
-
-        // ================= VIDEO =================
-        const video =
-            document.createElement("video");
-
-        video.srcObject = stream;
-
-        video.autoplay = true;
-
-        video.playsInline = true;
-
-        video.muted = true;
-
-        // รอให้กล้องเปิดจริง
-        await new Promise(
-            r=>setTimeout(r,1500)
-        );
-
-        console.log("CAMERA READY");
-
-        // ================= CANVAS =================
-        const canvas =
-            document.createElement("canvas");
-
-        canvas.width = 640;
-
-        canvas.height = 480;
-
-        const ctx =
-            canvas.getContext("2d");
-
-        ctx.drawImage(
-            video,
-            0,
-            0,
-            640,
-            480
-        );
-
-        console.log("DRAW IMAGE");
-
-        // ปิดกล้อง
-        stream
-            .getTracks()
-            .forEach(t=>t.stop());
-
-        // ================= BASE64 =================
-        const base64 =
-            canvas.toDataURL(
-                "image/jpeg",
-                0.3
-            );
-
-        console.log("BASE64 OK");
-
-        return base64;
-
-    }catch(err){
-
-        console.error(err);
-
-        alert(err);
-
-        return "";
-    }
-}
-
-// ================= TEST UPLOAD =================
-async function testUpload(){
-
-    try{
-
-        console.log("START");
-
-        // ถ่ายรูป
-        const selfie =
-            await captureSelfie();
-
-        console.log("SELFIE READY");
-
-        if(!selfie){
-
-            alert("ถ่ายรูปไม่สำเร็จ");
-
-            return;
+        if(json.status !== "success") {
+            throw new Error(json.message);
         }
 
-        console.log("FETCH START");
+        const data = json.data;
+        renderDashboard(data);
 
-        // ส่งไป Apps Script
-        const res =
-            await fetch(API,{
-
-                method:"POST",
-
-                body:JSON.stringify({
-
-                    selfie:selfie
-
-                })
-            });
-
-        console.log("FETCH DONE");
-
-        const text =
-            await res.text();
-
-        console.log(text);
-
-        alert(text);
-
-    }catch(err){
-
-        console.error(err);
-
-        alert(
-            "ERROR : " + err
-        );
+    } catch(err) {
+        document.getElementById("tableBody").innerHTML = `
+            <tr><td colspan="6" style="text-align:center; color:#ef4444; padding:30px;">
+                ✖ ดึงข้อมูลไม่สำเร็จ: ${err.message}
+            </td></tr>
+        `;
     }
 }
 
+function renderDashboard(data) {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    if(data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="loading">ยังไม่มีข้อมูลการประเมิน</td></tr>`;
+        document.getElementById("totalCount").innerText = "0";
+        document.getElementById("avgRating").innerText = "0.0";
+        return;
+    }
+
+    let totalScore = 0;
+
+    data.forEach(row => {
+        totalScore += row.rating;
+
+        // วาดดาวตามคะแนน
+        let starsHtml = "";
+        for(let i=1; i<=5; i++) {
+            starsHtml += i <= row.rating ? "★" : "<span style='color:#475569'>★</span>";
+        }
+
+        // ================= จัดการรูปภาพ =================
+        let imgHtml = `<span style="color:var(--muted); font-size:12px;">ไม่มีรูป</span>`;
+        
+        if (row.image && row.image.trim() !== "") {
+            // ดึง ID ไฟล์จากลิงก์ Google Drive
+            const match = row.image.match(/\/d\/(.+?)\//);
+            
+            if (match && match[1]) {
+                const fileId = match[1];
+                const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w100`;
+                
+                imgHtml = `
+                    <a href="${row.image}" target="_blank" style="display:inline-block; text-decoration:none;">
+                        <img src="${thumbnailUrl}" 
+                             style="width:45px; height:45px; border-radius:8px; object-fit:cover; border:2px solid var(--border); transition:transform 0.2s;" 
+                             onmouseover="this.style.transform='scale(1.1)'"
+                             onmouseout="this.style.transform='scale(1)'"
+                             title="คลิกเพื่อดูรูปขนาดเต็ม"
+                             alt="Selfie"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                        <span style="display:none; color:var(--primary); font-size:12px;" class="fallback-text">📸 ดูรูป</span>
+                    </a>
+                `;
+            } else {
+                imgHtml = `<a href="${row.image}" target="_blank" class="btn-img">📸 ดูรูป</a>`;
+            }
+        }
+
+        // สร้างแถวตาราง
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="color:var(--muted); font-size:13px;">
+                ${row.date} <br> ${row.time}
+            </td>
+            <td><span class="code-badge">${row.code}</span></td>
+            <td style="font-weight:600;">${row.name}</td>
+            <td class="stars">${starsHtml}</td>
+            <td style="font-family:monospace; color:var(--muted);">${row.evaluator}</td>
+            <td>${imgHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // อัปเดต Summary Cards
+    const avg = (totalScore / data.length).toFixed(1);
+    document.getElementById("totalCount").innerText = data.length;
+    document.getElementById("avgRating").innerText = avg + " ★";
+}
+
+// เริ่มต้นทำงานทันทีที่เปิดหน้าเว็บ
+window.onload = loadDashboard;
+
 </script>
+</body>
+</html>
