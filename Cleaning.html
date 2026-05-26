@@ -8,10 +8,13 @@
 <meta name="viewport"
 content="width=device-width,initial-scale=1">
 
-<title>Employee Login</title>
+<title>Employee QR System</title>
 
 <!-- LIFF SDK -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+<!-- QRCode -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
 
@@ -30,7 +33,7 @@ body{
 
 .card{
 
-    max-width:450px;
+    max-width:500px;
     margin:auto;
     background:#ffffff;
     border-radius:20px;
@@ -55,7 +58,7 @@ button{
     padding:15px;
     font-size:16px;
     cursor:pointer;
-    transition:0.2s;
+    transition:.2s;
 
 }
 
@@ -130,6 +133,36 @@ button:hover{
 
 }
 
+#qrcode{
+
+    margin-top:20px;
+    display:flex;
+    justify-content:center;
+
+}
+
+.qr-link{
+
+    margin-top:15px;
+    text-align:center;
+    font-size:13px;
+    word-break:break-all;
+    color:#374151;
+
+}
+
+.uuid-box{
+
+    margin-top:15px;
+    padding:10px;
+    background:#eef2ff;
+    border-radius:10px;
+    font-size:13px;
+    word-break:break-all;
+    text-align:center;
+
+}
+
 </style>
 
 </head>
@@ -138,7 +171,7 @@ button:hover{
 
 <div class="card">
 
-    <h2>Employee Login</h2>
+    <h2>Employee QR System</h2>
 
     <button
         class="login-btn"
@@ -163,21 +196,38 @@ button:hover{
 const LIFF_ID =
 "2007956727-fT3yQmc0";
 
-const GAS_URL =
+
+// ========================================
+// SCRIPT 1
+// FIND USER
+// ========================================
+const FIND_USER_URL =
 "https://script.google.com/macros/s/AKfycbw6nPMipi-MAtOo_WCdJG3YV8W5MEevzmSh_91TjaVBXeT6r77zJSjX52_iJHmBbkPk/exec";
+
+
+// ========================================
+// SCRIPT 2
+// CREATE QR
+// ========================================
+const CREATE_QR_URL =
+"https://script.google.com/macros/s/AKfycbwELK7MPED2yM2IIYKxEB6el7tNTiL5C6IbPRjKXqUBsRZ_a7MqmWb0VXithGe87Nii/exec";
+
+
+// ========================================
+// GLOBAL
+// ========================================
+let currentLineUserId = "";
 
 
 
 // ========================================
-// LOGIN FUNCTION
+// LOGIN
 // ========================================
 async function loginLine(){
 
     try{
 
-        // ========================================
-        // LOADING
-        // ========================================
+        // ===== loading =====
         document.getElementById("result")
         .innerHTML = `
             <div class="loading">
@@ -203,7 +253,7 @@ async function loginLine(){
         }
 
         // ========================================
-        // GET PROFILE
+        // PROFILE
         // ========================================
         const profile =
         await liff.getProfile();
@@ -214,19 +264,21 @@ async function loginLine(){
         const lineUserId =
         profile.userId;
 
-        console.log("LINE USER ID:");
+        currentLineUserId =
+        lineUserId;
+
         console.log(lineUserId);
 
         // ========================================
-        // FETCH GOOGLE APPS SCRIPT
+        // FETCH USER
         // ========================================
         const response =
         await fetch(
-            `${GAS_URL}?lineUserId=${lineUserId}`
+            `${FIND_USER_URL}?lineUserId=${lineUserId}`
         );
 
         // ========================================
-        // RESPONSE TEXT
+        // TEXT
         // ========================================
         const text =
         await response.text();
@@ -266,7 +318,7 @@ async function loginLine(){
         result.data;
 
         // ========================================
-        // SHOW DATA
+        // SHOW USER
         // ========================================
         document.getElementById("result")
         .innerHTML = `
@@ -282,9 +334,7 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-
                         รหัสพนักงาน :
-
                     </span>
 
                     ${data.colA}
@@ -294,9 +344,7 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-
                         ชื่อ - สกุล :
-
                     </span>
 
                     ${data.colB}
@@ -306,9 +354,7 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-
                         หน่วยงาน :
-
                     </span>
 
                     ${data.colC}
@@ -318,9 +364,7 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-
                         LINE User ID :
-
                     </span>
 
                     ${data.colD}
@@ -334,6 +378,12 @@ async function loginLine(){
                     สร้าง QR Code
 
                 </button>
+
+                <div id="qrcode"></div>
+
+                <div id="uuidArea"></div>
+
+                <div id="linkArea"></div>
 
             </div>
 
@@ -363,9 +413,111 @@ async function loginLine(){
 // ========================================
 // CREATE QR
 // ========================================
-function createQR(){
+async function createQR(){
 
-    alert("ยังไม่ได้เขียนระบบ QR Code");
+    try{
+
+        // ========================================
+        // CLEAR OLD
+        // ========================================
+        document.getElementById("qrcode")
+        .innerHTML = "";
+
+        document.getElementById("uuidArea")
+        .innerHTML = "";
+
+        document.getElementById("linkArea")
+        .innerHTML = "";
+
+        // ========================================
+        // FETCH CREATE QR
+        // ========================================
+        const response =
+        await fetch(
+
+            `${CREATE_QR_URL}?lineUserId=${currentLineUserId}`
+
+        );
+
+        // ========================================
+        // TEXT
+        // ========================================
+        const text =
+        await response.text();
+
+        console.log(text);
+
+        // ========================================
+        // JSON
+        // ========================================
+        const result =
+        JSON.parse(text);
+
+        // ========================================
+        // FAIL
+        // ========================================
+        if(!result.success){
+
+            alert(result.message);
+            return;
+
+        }
+
+        // ========================================
+        // GENERATE QR
+        // ========================================
+        new QRCode(
+
+            document.getElementById("qrcode"),
+
+            {
+
+                text: result.qrText,
+
+                width:250,
+                height:250
+
+            }
+
+        );
+
+        // ========================================
+        // UUID
+        // ========================================
+        document.getElementById("uuidArea")
+        .innerHTML = `
+
+            <div class="uuid-box">
+
+                <b>UUID</b><br><br>
+
+                ${result.uuid}
+
+            </div>
+
+        `;
+
+        // ========================================
+        // LINK
+        // ========================================
+        document.getElementById("linkArea")
+        .innerHTML = `
+
+            <div class="qr-link">
+
+                ${result.qrText}
+
+            </div>
+
+        `;
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(err);
+
+    }
 
 }
 
