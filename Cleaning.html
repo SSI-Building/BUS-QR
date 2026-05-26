@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Employee QR</title>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+
+body{
+    font-family:sans-serif;
+    background:#f5f5f5;
+    text-align:center;
+    padding:30px;
+}
+
+.card{
+    background:#fff;
+    padding:25px;
+    border-radius:20px;
+    max-width:400px;
+    margin:auto;
+    box-shadow:0 4px 15px rgba(0,0,0,.1);
+}
+
+button{
+    background:#06c755;
+    color:#fff;
+    border:none;
+    padding:15px 30px;
+    border-radius:12px;
+    font-size:18px;
+    cursor:pointer;
+}
+
+#qrcode{
+    margin-top:20px;
+    display:flex;
+    justify-content:center;
+}
+
+</style>
+</head>
+<body>
+
+<div class="card">
+
+<h2>Employee QR</h2>
+
+<button onclick="loginLine()">
+Login with LINE
+</button>
+
+<div id="info"></div>
+
+<div id="qrcode"></div>
+
+</div>
+
+<script>
+
+const LIFF_ID = "2008493818-oyVC6yBI";
+
+const GAS_URL =
+"https://script.google.com/macros/s/AKfycbxhZ556pdsczPWHuJ31rC30ApPMulXsecjdPeT8xWv1ivEbrV7sKR6RLfWjz6OLZmPN/exec";
+
+async function loginLine(){
+
+    await liff.init({
+        liffId: LIFF_ID
+    });
+
+    if(!liff.isLoggedIn()){
+
+        liff.login();
+        return;
+    }
+
+    const profile = await liff.getProfile();
+
+    const lineUserId = profile.userId;
+
+    document.getElementById("info").innerHTML =
+    "กำลังตรวจสอบข้อมูล...";
+
+
+
+    // ===== ส่งไป Apps Script =====
+    const response = await fetch(GAS_URL,{
+
+        method:"POST",
+
+        body:JSON.stringify({
+            lineUserId:lineUserId
+        })
+
+    });
+
+    const result = await response.json();
+
+    if(!result.success){
+
+        document.getElementById("info").innerHTML =
+        result.message;
+
+        return;
+    }
+
+    // ===== แสดงข้อมูล =====
+    document.getElementById("info").innerHTML = `
+        <h3>${result.fullName}</h3>
+        <p>${result.empId}</p>
+    `;
+
+    // ===== สร้าง QR =====
+    new QRCode(document.getElementById("qrcode"), {
+        text: result.qrText,
+        width: 250,
+        height: 250
+    });
+
+}
+
+</script>
+
+</body>
+</html>
