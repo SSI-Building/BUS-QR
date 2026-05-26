@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
@@ -15,16 +16,16 @@
 body{
     font-family:sans-serif;
     background:#f5f5f5;
+    padding:20px;
     text-align:center;
-    padding:30px;
 }
 
 .card{
-    background:#fff;
-    padding:25px;
-    border-radius:20px;
     max-width:400px;
     margin:auto;
+    background:#fff;
+    border-radius:20px;
+    padding:25px;
     box-shadow:0 4px 15px rgba(0,0,0,.1);
 }
 
@@ -32,19 +33,29 @@ button{
     background:#06c755;
     color:#fff;
     border:none;
-    padding:15px 30px;
+    padding:14px 25px;
     border-radius:12px;
-    font-size:18px;
+    font-size:16px;
     cursor:pointer;
+    margin-top:15px;
 }
 
 #qrcode{
-    margin-top:20px;
+    margin-top:25px;
     display:flex;
     justify-content:center;
 }
 
+.user-box{
+    margin-top:20px;
+    text-align:left;
+    background:#f8f8f8;
+    padding:15px;
+    border-radius:12px;
+}
+
 </style>
+
 </head>
 <body>
 
@@ -52,11 +63,13 @@ button{
 
 <h2>Employee QR</h2>
 
-<button onclick="loginLine()">
+<button onclick="startLogin()">
 Login with LINE
 </button>
 
-<div id="info"></div>
+<div id="userInfo"></div>
+
+<div id="createBtn"></div>
 
 <div id="qrcode"></div>
 
@@ -69,7 +82,12 @@ const LIFF_ID = "2008493818-oyVC6yBI";
 const GAS_URL =
 "https://script.google.com/macros/s/AKfycbxhZ556pdsczPWHuJ31rC30ApPMulXsecjdPeT8xWv1ivEbrV7sKR6RLfWjz6OLZmPN/exec";
 
-async function loginLine(){
+let currentLineUserId = "";
+
+
+
+// ================= LOGIN =================
+async function startLogin(){
 
     await liff.init({
         liffId: LIFF_ID
@@ -83,20 +101,81 @@ async function loginLine(){
 
     const profile = await liff.getProfile();
 
-    const lineUserId = profile.userId;
+    currentLineUserId = profile.userId;
 
-    document.getElementById("info").innerHTML =
-    "กำลังตรวจสอบข้อมูล...";
+    checkUser();
+}
 
 
 
-    // ===== ส่งไป Apps Script =====
+// ================= CHECK USER =================
+async function checkUser(){
+
     const response = await fetch(GAS_URL,{
 
         method:"POST",
 
         body:JSON.stringify({
-            lineUserId:lineUserId
+
+            action:"checkUser",
+            lineUserId:currentLineUserId
+
+        })
+
+    });
+
+    const result = await response.json();
+
+    // ===== ไม่พบ =====
+    if(!result.success){
+
+        document.getElementById("userInfo").innerHTML =
+        result.message;
+
+        return;
+    }
+
+    // ===== แสดงข้อมูล =====
+    document.getElementById("userInfo").innerHTML = `
+
+        <div class="user-box">
+
+            <p><b>รหัสพนักงาน:</b> ${result.empId}</p>
+
+            <p><b>ชื่อ:</b> ${result.fullName}</p>
+
+            <p><b>LINE ID:</b><br>${result.lineId}</p>
+
+        </div>
+
+    `;
+
+    // ===== ปุ่มสร้าง QR =====
+    document.getElementById("createBtn").innerHTML = `
+
+        <button onclick="createQR()">
+
+            สร้าง QR Code
+
+        </button>
+
+    `;
+}
+
+
+
+// ================= CREATE QR =================
+async function createQR(){
+
+    const response = await fetch(GAS_URL,{
+
+        method:"POST",
+
+        body:JSON.stringify({
+
+            action:"createQR",
+            lineUserId:currentLineUserId
+
         })
 
     });
@@ -105,23 +184,21 @@ async function loginLine(){
 
     if(!result.success){
 
-        document.getElementById("info").innerHTML =
-        result.message;
-
+        alert("เกิดข้อผิดพลาด");
         return;
     }
 
-    // ===== แสดงข้อมูล =====
-    document.getElementById("info").innerHTML = `
-        <h3>${result.fullName}</h3>
-        <p>${result.empId}</p>
-    `;
+    // ===== clear QR เดิม =====
+    document.getElementById("qrcode").innerHTML = "";
 
     // ===== สร้าง QR =====
     new QRCode(document.getElementById("qrcode"), {
+
         text: result.qrText,
+
         width: 250,
         height: 250
+
     });
 
 }
