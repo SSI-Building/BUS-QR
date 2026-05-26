@@ -3,55 +3,83 @@
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport"
+content="width=device-width,initial-scale=1">
 
-<title>Employee QR</title>
+<title>Employee Login</title>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
 
 body{
-    font-family:sans-serif;
-    background:#f5f5f5;
+    margin:0;
     padding:20px;
-    text-align:center;
+    background:#f5f5f5;
+    font-family:sans-serif;
 }
 
 .card{
-    max-width:400px;
+
+    max-width:450px;
     margin:auto;
     background:#fff;
-    border-radius:20px;
     padding:25px;
+    border-radius:20px;
     box-shadow:0 4px 15px rgba(0,0,0,.1);
+
+}
+
+h2{
+    text-align:center;
 }
 
 button{
-    background:#06c755;
-    color:#fff;
+
+    width:100%;
+    padding:15px;
     border:none;
-    padding:14px 25px;
     border-radius:12px;
     font-size:16px;
     cursor:pointer;
+
+}
+
+.login-btn{
+
+    background:#06c755;
+    color:#fff;
+
+}
+
+.qr-btn{
+
+    background:#111827;
+    color:#fff;
     margin-top:15px;
+
 }
 
-#qrcode{
-    margin-top:25px;
-    display:flex;
-    justify-content:center;
-}
+.info-box{
 
-.user-box{
     margin-top:20px;
-    text-align:left;
-    background:#f8f8f8;
-    padding:15px;
+    background:#f9fafb;
     border-radius:12px;
+    padding:15px;
+
+}
+
+.row{
+
+    margin-bottom:10px;
+    word-break:break-all;
+
+}
+
+.label{
+
+    font-weight:bold;
+
 }
 
 </style>
@@ -61,146 +89,129 @@ button{
 
 <div class="card">
 
-<h2>Employee QR</h2>
+    <h2>Employee Login</h2>
 
-<button onclick="startLogin()">
-Login with LINE
-</button>
+    <button class="login-btn"
+    onclick="loginLine()">
 
-<div id="userInfo"></div>
+        Login with LINE
 
-<div id="createBtn"></div>
+    </button>
 
-<div id="qrcode"></div>
+    <div id="result"></div>
 
 </div>
 
 <script>
 
-const LIFF_ID = "2008493818-oyVC6yBI";
+const LIFF_ID =
+"2008493818-oyVC6yBI";
 
 const GAS_URL =
-"https://script.google.com/macros/s/AKfycbxhZ556pdsczPWHuJ31rC30ApPMulXsecjdPeT8xWv1ivEbrV7sKR6RLfWjz6OLZmPN/exec";
-
-let currentLineUserId = "";
+"https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXX/exec";
 
 
 
 // ================= LOGIN =================
-async function startLogin(){
+async function loginLine(){
 
+    // init LIFF
     await liff.init({
         liffId: LIFF_ID
     });
 
+    // login
     if(!liff.isLoggedIn()){
 
         liff.login();
         return;
     }
 
-    const profile = await liff.getProfile();
+    // profile
+    const profile =
+      await liff.getProfile();
 
-    currentLineUserId = profile.userId;
+    const lineUserId =
+      profile.userId;
 
-    checkUser();
-}
+    console.log(lineUserId);
 
-
-
-// ================= CHECK USER =================
-async function checkUser(){
-
+    // ===== ส่งไป Apps Script =====
     const response = await fetch(GAS_URL,{
 
         method:"POST",
 
         body:JSON.stringify({
-
-            action:"checkUser",
-            lineUserId:currentLineUserId
-
+            lineUserId:lineUserId
         })
 
     });
 
-    const result = await response.json();
+    const result =
+      await response.json();
 
     // ===== ไม่พบ =====
     if(!result.success){
 
-        document.getElementById("userInfo").innerHTML =
-        result.message;
+        document.getElementById("result")
+        .innerHTML = `
+
+            <div class="info-box">
+
+                ${result.message}
+
+            </div>
+
+        `;
 
         return;
     }
 
     // ===== แสดงข้อมูล =====
-    document.getElementById("userInfo").innerHTML = `
+    const data = result.data;
 
-        <div class="user-box">
+    document.getElementById("result")
+    .innerHTML = `
 
-            <p><b>รหัสพนักงาน:</b> ${result.empId}</p>
+        <div class="info-box">
 
-            <p><b>ชื่อ:</b> ${result.fullName}</p>
+            <div class="row">
+                <span class="label">
+                Column A:
+                </span>
+                ${data.colA}
+            </div>
 
-            <p><b>LINE ID:</b><br>${result.lineId}</p>
+            <div class="row">
+                <span class="label">
+                Column B:
+                </span>
+                ${data.colB}
+            </div>
+
+            <div class="row">
+                <span class="label">
+                Column C:
+                </span>
+                ${data.colC}
+            </div>
+
+            <div class="row">
+                <span class="label">
+                Column D:
+                </span>
+                ${data.colD}
+            </div>
+
+            <button class="qr-btn">
+
+                สร้าง QR Code
+
+            </button>
 
         </div>
 
     `;
-
-    // ===== ปุ่มสร้าง QR =====
-    document.getElementById("createBtn").innerHTML = `
-
-        <button onclick="createQR()">
-
-            สร้าง QR Code
-
-        </button>
-
-    `;
-}
-
-
-
-// ================= CREATE QR =================
-async function createQR(){
-
-    const response = await fetch(GAS_URL,{
-
-        method:"POST",
-
-        body:JSON.stringify({
-
-            action:"createQR",
-            lineUserId:currentLineUserId
-
-        })
-
-    });
-
-    const result = await response.json();
-
-    if(!result.success){
-
-        alert("เกิดข้อผิดพลาด");
-        return;
-    }
-
-    // ===== clear QR เดิม =====
-    document.getElementById("qrcode").innerHTML = "";
-
-    // ===== สร้าง QR =====
-    new QRCode(document.getElementById("qrcode"), {
-
-        text: result.qrText,
-
-        width: 250,
-        height: 250
-
-    });
-
 }
 
 </script>
