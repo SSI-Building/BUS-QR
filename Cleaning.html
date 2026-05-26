@@ -10,9 +10,14 @@ content="width=device-width,initial-scale=1">
 
 <title>Employee Login</title>
 
+<!-- LIFF SDK -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
 <style>
+
+*{
+    box-sizing:border-box;
+}
 
 body{
 
@@ -27,7 +32,7 @@ body{
 
     max-width:450px;
     margin:auto;
-    background:#fff;
+    background:#ffffff;
     border-radius:20px;
     padding:25px;
     box-shadow:0 4px 15px rgba(0,0,0,.1);
@@ -38,6 +43,7 @@ h2{
 
     text-align:center;
     margin-bottom:20px;
+    color:#111827;
 
 }
 
@@ -49,6 +55,13 @@ button{
     padding:15px;
     font-size:16px;
     cursor:pointer;
+    transition:0.2s;
+
+}
+
+button:hover{
+
+    opacity:.9;
 
 }
 
@@ -73,19 +86,22 @@ button{
     background:#f9fafb;
     border-radius:12px;
     padding:15px;
+    border:1px solid #e5e7eb;
 
 }
 
 .row{
 
-    margin-bottom:10px;
+    margin-bottom:12px;
     word-break:break-all;
+    font-size:15px;
 
 }
 
 .label{
 
     font-weight:bold;
+    color:#111827;
 
 }
 
@@ -93,6 +109,24 @@ button{
 
     text-align:center;
     margin-top:20px;
+    color:#6b7280;
+
+}
+
+.error{
+
+    color:red;
+    text-align:center;
+    margin-top:20px;
+
+}
+
+.success{
+
+    color:#16a34a;
+    text-align:center;
+    margin-top:15px;
+    font-weight:bold;
 
 }
 
@@ -106,8 +140,9 @@ button{
 
     <h2>Employee Login</h2>
 
-    <button class="login-btn"
-    onclick="loginLine()">
+    <button
+        class="login-btn"
+        onclick="loginLine()">
 
         Login with LINE
 
@@ -120,8 +155,6 @@ button{
 
 
 <script>
-
-
 
 // ========================================
 // CONFIG
@@ -136,78 +169,85 @@ const GAS_URL =
 
 
 // ========================================
-// LOGIN
+// LOGIN FUNCTION
 // ========================================
 async function loginLine(){
 
     try{
 
-        // ===== loading =====
+        // ========================================
+        // LOADING
+        // ========================================
         document.getElementById("result")
         .innerHTML = `
             <div class="loading">
-                กำลังโหลด...
+                กำลังโหลดข้อมูล...
             </div>
         `;
 
-        // ===== init LIFF =====
+        // ========================================
+        // INIT LIFF
+        // ========================================
         await liff.init({
             liffId: LIFF_ID
         });
 
-        // ===== login =====
+        // ========================================
+        // LOGIN
+        // ========================================
         if(!liff.isLoggedIn()){
 
             liff.login();
             return;
+
         }
 
-        // ===== get profile =====
+        // ========================================
+        // GET PROFILE
+        // ========================================
         const profile =
-          await liff.getProfile();
+        await liff.getProfile();
 
-        // ===== line user id =====
+        // ========================================
+        // LINE USER ID
+        // ========================================
         const lineUserId =
-          profile.userId;
+        profile.userId;
 
         console.log("LINE USER ID:");
         console.log(lineUserId);
 
-        alert(lineUserId);
-
-        // ===== fetch GAS =====
+        // ========================================
+        // FETCH GOOGLE APPS SCRIPT
+        // ========================================
         const response =
-          await fetch(GAS_URL,{
+        await fetch(
+            `${GAS_URL}?lineUserId=${lineUserId}`
+        );
 
-            method:"POST",
-
-            headers:{
-                "Content-Type":"application/json"
-            },
-
-            body:JSON.stringify({
-                lineUserId:lineUserId
-            })
-
-        });
-
-        // ===== text =====
+        // ========================================
+        // RESPONSE TEXT
+        // ========================================
         const text =
-          await response.text();
+        await response.text();
 
         console.log(text);
 
-        // ===== json =====
+        // ========================================
+        // JSON
+        // ========================================
         const result =
-          JSON.parse(text);
+        JSON.parse(text);
 
-        // ===== fail =====
+        // ========================================
+        // FAIL
+        // ========================================
         if(!result.success){
 
             document.getElementById("result")
             .innerHTML = `
 
-                <div class="info-box">
+                <div class="error">
 
                     ${result.message}
 
@@ -216,21 +256,35 @@ async function loginLine(){
             `;
 
             return;
+
         }
 
-        // ===== data =====
-        const data = result.data;
+        // ========================================
+        // DATA
+        // ========================================
+        const data =
+        result.data;
 
-        // ===== show =====
+        // ========================================
+        // SHOW DATA
+        // ========================================
         document.getElementById("result")
         .innerHTML = `
+
+            <div class="success">
+
+                Login สำเร็จ
+
+            </div>
 
             <div class="info-box">
 
                 <div class="row">
 
                     <span class="label">
-                    Column A:
+
+                        รหัสพนักงาน :
+
                     </span>
 
                     ${data.colA}
@@ -240,7 +294,9 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-                    Column B:
+
+                        ชื่อ - สกุล :
+
                     </span>
 
                     ${data.colB}
@@ -250,7 +306,9 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-                    Column C:
+
+                        หน่วยงาน :
+
                     </span>
 
                     ${data.colC}
@@ -260,14 +318,18 @@ async function loginLine(){
                 <div class="row">
 
                     <span class="label">
-                    Column D:
+
+                        LINE User ID :
+
                     </span>
 
                     ${data.colD}
 
                 </div>
 
-                <button class="qr-btn">
+                <button
+                    class="qr-btn"
+                    onclick="createQR()">
 
                     สร้าง QR Code
 
@@ -284,14 +346,27 @@ async function loginLine(){
         document.getElementById("result")
         .innerHTML = `
 
-            <div class="info-box">
+            <div class="error">
 
                 ${err}
 
             </div>
 
         `;
+
     }
+
+}
+
+
+
+// ========================================
+// CREATE QR
+// ========================================
+function createQR(){
+
+    alert("ยังไม่ได้เขียนระบบ QR Code");
+
 }
 
 </script>
