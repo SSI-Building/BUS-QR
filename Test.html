@@ -12,7 +12,6 @@ content="width=device-width,initial-scale=1.0">
 <style>
 
 :root{
-
     --bg:#0f172a;
     --card:#1e293b;
     --text:#f8fafc;
@@ -20,62 +19,48 @@ content="width=device-width,initial-scale=1.0">
     --primary:#60a5fa;
     --success:#10b981;
     --danger:#ef4444;
-
 }
 
 body{
-
     margin:0;
     background:var(--bg);
     color:var(--text);
     font-family:Segoe UI,sans-serif;
-
 }
 
 header{
-
     padding:18px;
     text-align:center;
     font-size:22px;
     font-weight:800;
     color:var(--primary);
-
 }
 
 .container{
-
     max-width:520px;
     margin:auto;
     padding:16px;
-
 }
 
 #reader{
-
     border-radius:16px;
     overflow:hidden;
-
 }
 
 .card{
-
     margin-top:14px;
     background:var(--card);
     border-radius:16px;
     padding:14px;
-
 }
 
 .status{
-
     text-align:center;
     color:var(--muted);
     font-weight:700;
-
 }
 
 button{
-
     width:100%;
     border:none;
     border-radius:12px;
@@ -84,64 +69,19 @@ button{
     font-size:16px;
     font-weight:700;
     cursor:pointer;
-
 }
 
 .process-btn{
-
     background:#2563eb;
     color:white;
-
-}
-
-.send-btn{
-
-    background:#10b981;
-    color:white;
-
-}
-
-.reset-btn{
-
-    background:#334155;
-    color:white;
-
-}
-
-input{
-
-    width:100%;
-    padding:12px;
-    border:none;
-    border-radius:10px;
-    background:#0f172a;
-    color:white;
-    font-size:16px;
-    box-sizing:border-box;
-
-}
-
-.uuid-box{
-
-    margin-top:10px;
-    padding:12px;
-    background:#0f172a;
-    border-radius:10px;
-    word-break:break-all;
-    font-family:monospace;
-
 }
 
 .success{
-
     color:var(--success);
-
 }
 
 .error{
-
     color:var(--danger);
-
 }
 
 </style>
@@ -158,13 +98,10 @@ BUS QR SCANNER
     <div id="reader"></div>
 
     <div class="card">
-
         <div
             id="statusBox"
             class="status">
-
             ● Ready to scan
-
         </div>
 
         <div
@@ -174,22 +111,15 @@ BUS QR SCANNER
                 text-align:center;
                 color:#94a3b8;
             ">
-
             สแกนแล้ว 0 รายการ
-
         </div>
-
     </div>
 
     <button
         class="process-btn"
         onclick="processData()">
-
         ประมวลผล
-
     </button>
-
-    <div id="result"></div>
 
 </div>
 
@@ -199,7 +129,7 @@ BUS QR SCANNER
 // API
 // ======================================
 
-// อัปเดตลิงก์ Web App ตัวใหม่
+// ใช้ Web URL ตัวใหม่ที่เชื่อมกับระบบ Action เรียบร้อยแล้ว
 const SAVE_API =
 "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 
@@ -208,7 +138,6 @@ const SAVE_API =
 // ======================================
 
 let scanner;
-
 let scannedUUIDs = [];
 
 // ======================================
@@ -216,9 +145,7 @@ let scannedUUIDs = [];
 // ======================================
 
 window.onload = async ()=>{
-
     await startScanner();
-
 };
 
 // ======================================
@@ -226,25 +153,13 @@ window.onload = async ()=>{
 // ======================================
 
 async function startScanner(){
-
-    scanner =
-        new Html5Qrcode("reader");
+    scanner = new Html5Qrcode("reader");
 
     await scanner.start(
-
-        {
-            facingMode:"environment"
-        },
-
-        {
-            fps:10,
-            qrbox:250
-        },
-
+        { facingMode:"environment" },
+        { fps:10, qrbox:250 },
         onScan
-
     );
-
 }
 
 // ======================================
@@ -252,206 +167,130 @@ async function startScanner(){
 // ======================================
 
 async function onScan(decodedText){
-
     try{
-
         await scanner.pause();
-
     }catch(err){}
 
-    const raw =
-        decodedText.trim();
+    const raw = decodedText.trim();
 
     // ======================================
     // MATCH UUID
     // ======================================
-
-    const pattern =
-/^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i;
-
-    const match =
-        raw.match(pattern);
+    const pattern = /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i;
+    const match = raw.match(pattern);
 
     // ======================================
     // INVALID
     // ======================================
-
     if(!match){
-
-        setStatus(
-            "QR ไม่ถูกต้อง",
-            true
-        );
-
+        setStatus("QR ไม่ถูกต้อง", true);
         setTimeout(async ()=>{
-
             await scanner.resume();
-
         },1000);
-
         return;
-
     }
 
     // ======================================
-    // UUID
+    // UUID & DUPLICATE
     // ======================================
-
-    const uuid =
-        match[1].trim();
-
-    // ======================================
-    // DUPLICATE
-    // ======================================
+    const uuid = match[1].trim();
 
     if(!scannedUUIDs.includes(uuid)){
-
         scannedUUIDs.push(uuid);
-
         updateCount();
-
     }
 
-    setStatus(
-        uuid,
-        false
-    );
+    setStatus(uuid, false);
 
     setTimeout(async ()=>{
-
         await scanner.resume();
-
     },700);
-
 }
 
 // ======================================
-// STATUS
+// STATUS & COUNT
 // ======================================
 
 function setStatus(text,isError){
-
-    const el =
-        document.getElementById(
-            "statusBox"
-        );
-
-    el.innerHTML =
-        isError
-        ? `✖ ${text}`
-        : `✔ ${text}`;
-
-    el.className =
-        "status " +
-        (isError ? "error" : "success");
-
+    const el = document.getElementById("statusBox");
+    el.innerHTML = isError ? `✖ ${text}` : `✔ ${text}`;
+    el.className = "status " + (isError ? "error" : "success");
 }
-
-// ======================================
-// COUNT
-// ======================================
 
 function updateCount(){
-
-    document.getElementById(
-        "scanCount"
-    ).innerHTML =
-
-        "สแกนแล้ว " +
-        scannedUUIDs.length +
-        " รายการ";
-
+    document.getElementById("scanCount").innerHTML = "สแกนแล้ว " + scannedUUIDs.length + " รายการ";
 }
 
 // ======================================
-// PROCESS
+// PROCESS (เปลี่ยนการแสดงผลไปอีกหน้า)
 // ======================================
 
 function processData(){
-
     if(scannedUUIDs.length===0){
-
         alert("ยังไม่มีข้อมูล");
-
         return;
-
     }
 
-    const savedScannerId =
-        localStorage.getItem(
-            "scannerId"
-        ) || "";
+    const savedScannerId = localStorage.getItem("scannerId") || "";
 
-    let html = `
+    // 1. ปิดกล้องเพื่อประหยัดแบตเตอรี่และเตรียมเข้าสู่หน้าใหม่
+    try{
+        if(scanner) scanner.stop();
+    }catch(err){}
 
-        <div class="card">
-
-            <div style="
-                margin-bottom:10px;
-                font-weight:700;
-                color:#60a5fa;
-            ">
-
-                UUID ที่สแกน
-
-            </div>
-
+    // 2. แสดงหน้าต่าง Loading เต็มจอ
+    document.body.innerHTML = `
+        <div style="position:fixed; inset:0; background:#0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:Segoe UI;">
+            <div style="width:70px; height:70px; border:6px solid #334155; border-top:6px solid #60a5fa; border-radius:50%; animation:spin 1s linear infinite;"></div>
+            <div style="margin-top:20px; font-size:22px; font-weight:700;">กำลังประมวลผลข้อมูล</div>
+        </div>
+        <style>@keyframes spin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }</style>
     `;
 
-    scannedUUIDs.forEach(uuid=>{
+    // 3. หน่วงเวลาเล็กน้อยให้เห็นโหลด แล้วเรนเดอร์หน้าใหม่
+    setTimeout(() => {
+        let html = `
+            <header style="text-align:center; padding:18px; font-weight:800; color:#60a5fa; background:rgba(30,41,59,.8); font-family:Segoe UI; font-size:22px; letter-spacing:1px;">
+                BUS QR SCANNER
+            </header>
 
-        html += `
-
-            <div class="uuid-box">
-                ${uuid}
-            </div>
-
+            <div class="container" style="max-width:520px; margin:auto; padding:18px; font-family:Segoe UI;">
+                <div style="background:#1e293b; border-radius:16px; padding:18px;">
+                    <div style="margin-bottom:12px; font-weight:700; color:#60a5fa; font-size:18px;">
+                        UUID ที่สแกน
+                    </div>
         `;
 
-    });
+        // สร้างกล่องแสดง UUID
+        scannedUUIDs.forEach(uuid=>{
+            html += `
+                <div style="margin-top:10px; padding:12px; background:#0f172a; border-radius:10px; word-break:break-all; font-family:monospace; color:white; font-size:14px;">
+                    ${uuid}
+                </div>
+            `;
+        });
 
-    html += `
+        // ส่วนผู้สแกนและปุ่มดำเนินการ
+        html += `
+                    <div style="margin-top:22px; margin-bottom:8px; color:#94a3b8; font-size:15px; font-weight:600;">
+                        รหัสพนักงานผู้สแกน
+                    </div>
+                    <input id="scannerId" placeholder="เช่น K0123" value="${savedScannerId}" 
+                        style="width:100%; padding:14px; border:none; border-radius:10px; background:#0f172a; color:white; font-size:16px; box-sizing:border-box;">
 
-        <div style="
-            margin-top:18px;
-            margin-bottom:8px;
-            color:#94a3b8;
-        ">
+                    <button onclick="sendData()" style="width:100%; border:none; border-radius:12px; padding:16px; margin-top:20px; font-size:16px; font-weight:700; cursor:pointer; background:#10b981; color:white;">
+                        ส่งข้อมูล
+                    </button>
+                    
+                    <button onclick="location.reload()" style="width:100%; border:none; border-radius:12px; padding:14px; margin-top:12px; font-size:16px; font-weight:700; cursor:pointer; background:transparent; border:1px solid #475569; color:#94a3b8;">
+                        ยกเลิก / เริ่มใหม่
+                    </button>
+                </div>
+            </div>
+        `;
 
-            รหัสพนักงานผู้สแกน
-
-        </div>
-
-        <input
-            id="scannerId"
-            placeholder="เช่น K0123"
-            value="${savedScannerId}"
-        >
-
-        <button
-            class="send-btn"
-            onclick="sendData()">
-
-            ส่งข้อมูล
-
-        </button>
-
-        <button
-            class="reset-btn"
-            onclick="location.reload()">
-
-            เริ่มใหม่
-
-        </button>
-
-        </div>
-
-    `;
-
-    document.getElementById(
-        "result"
-    ).innerHTML = html;
-
+        document.body.innerHTML = html;
+    }, 600); // ดีเลย์ไว้ 0.6 วินาทีให้ดูเนียนตา
 }
 
 // ======================================
@@ -459,78 +298,32 @@ function processData(){
 // ======================================
 
 async function captureSelfie(){
-
     try{
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video:{ facingMode:"user" }
+        });
 
-        if(scanner){
-
-            try{
-
-                await scanner.stop();
-
-            }catch(err){}
-        }
-
-        const stream =
-            await navigator.mediaDevices.getUserMedia({
-
-                video:{
-                    facingMode:"user"
-                }
-
-            });
-
-        const video =
-            document.createElement(
-                "video"
-            );
-
-        video.srcObject =
-            stream;
-
+        const video = document.createElement("video");
+        video.srcObject = stream;
+        video.playsInline = true;
         await video.play();
 
-        await new Promise(
-            r=>setTimeout(r,1200)
-        );
+        await new Promise(r=>setTimeout(r,1200));
 
-        const canvas =
-            document.createElement(
-                "canvas"
-            );
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0);
 
-        canvas.width =
-            video.videoWidth;
+        stream.getTracks().forEach(t=>t.stop());
 
-        canvas.height =
-            video.videoHeight;
-
-        const ctx =
-            canvas.getContext("2d");
-
-        ctx.drawImage(
-            video,
-            0,
-            0
-        );
-
-        stream
-            .getTracks()
-            .forEach(t=>t.stop());
-
-        return canvas.toDataURL(
-            "image/jpeg",
-            0.35
-        );
+        return canvas.toDataURL("image/jpeg", 0.35);
 
     }catch(err){
-
         console.log(err);
-
         return "";
-
     }
-
 }
 
 // ======================================
@@ -538,92 +331,38 @@ async function captureSelfie(){
 // ======================================
 
 async function sendData(){
-
     try{
-
-        const scannerId =
-            document.getElementById(
-                "scannerId"
-            )
-            .value
-            .trim()
-            .toUpperCase();
+        const scannerId = document.getElementById("scannerId").value.trim().toUpperCase();
 
         if(scannerId===""){
-
-            alert(
-                "กรุณากรอกรหัสพนักงาน"
-            );
-
+            alert("กรุณากรอกรหัสพนักงาน");
             return;
-
         }
 
         // SAVE LOCAL
-        localStorage.setItem(
-            "scannerId",
-            scannerId
-        );
+        localStorage.setItem("scannerId", scannerId);
 
         // LOADING
         document.body.innerHTML = `
-
-            <div style="
-                height:100vh;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                flex-direction:column;
-                color:white;
-                font-family:Segoe UI;
-                background:#0f172a;
-            ">
-
-                <div style="
-                    width:70px;
-                    height:70px;
-                    border:6px solid #334155;
-                    border-top:6px solid #10b981;
-                    border-radius:50%;
-                    animation:spin 1s linear infinite;
-                "></div>
-
-                <div style="
-                    margin-top:20px;
-                    font-size:22px;
-                    font-weight:700;
-                ">
-
-                    กำลังบันทึกข้อมูล
-
-                </div>
-
+            <div style="height:100vh; display:flex; justify-content:center; align-items:center; flex-direction:column; color:white; font-family:Segoe UI; background:#0f172a;">
+                <div style="width:70px; height:70px; border:6px solid #334155; border-top:6px solid #10b981; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <div style="margin-top:20px; font-size:22px; font-weight:700;">กำลังบันทึกข้อมูล</div>
             </div>
-
-            <style>
-            @keyframes spin{
-                0%{ transform:rotate(0deg); }
-                100%{ transform:rotate(360deg); }
-            }
-            </style>
-
+            <style>@keyframes spin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }</style>
         `;
 
         // ======================================
         // SELFIE
         // ======================================
-
-        const selfie =
-            await captureSelfie();
+        const selfie = await captureSelfie();
 
         // ======================================
         // SEND ALL UUID IN ONE REQUEST
         // ======================================
-
         const response = await fetch(SAVE_API, {
             method: "POST",
             body: JSON.stringify({
-                action: "saveData", // เพิ่มบรรทัดนี้ เพื่อบอกให้ Apps Script รู้ว่านี่คือฟังก์ชันบันทึกข้อมูลสแกน
+                action: "saveData", // ส่ง action ไปให้ Apps Script รู้ว่าเป็นข้อมูลการสแกน
                 uuidList: scannedUUIDs,
                 scannerId: scannerId,
                 selfie: selfie
@@ -639,63 +378,20 @@ async function sendData(){
         // ======================================
         // SUCCESS
         // ======================================
-
         document.body.innerHTML = `
-
-            <div style="
-                height:100vh;
-                display:flex;
-                justify-content:center;
-                align-items:center;
-                flex-direction:column;
-                background:#0f172a;
-                color:white;
-                font-family:Segoe UI;
-            ">
-
-                <div style="
-                    font-size:80px;
-                    color:#10b981;
-                ">
-                    ✔
-                </div>
-
-                <div style="
-                    margin-top:20px;
-                    font-size:26px;
-                    font-weight:700;
-                ">
-                    บันทึกสำเร็จ
-                </div>
-                
-                <div style="
-                    margin-top:10px;
-                    color:#60a5fa;
-                ">
-                    อัปเดตข้อมูล ${result.updatedCount} รายการ
-                </div>
-
-                <div style="
-                    margin-top:10px;
-                    color:#94a3b8;
-                ">
-                    สามารถปิดหน้านี้ได้เลย
-                </div>
-
+            <div style="height:100vh; display:flex; justify-content:center; align-items:center; flex-direction:column; background:#0f172a; color:white; font-family:Segoe UI;">
+                <div style="font-size:80px; color:#10b981;">✔</div>
+                <div style="margin-top:20px; font-size:26px; font-weight:700;">บันทึกสำเร็จ</div>
+                <div style="margin-top:10px; color:#60a5fa; font-size:16px;">อัปเดตข้อมูล ${result.updatedCount} รายการ</div>
+                <div style="margin-top:12px; color:#94a3b8;">สามารถปิดหน้านี้ได้เลย</div>
             </div>
-
         `;
 
     }catch(err){
-
         console.error(err);
-
         alert("บันทึกไม่สำเร็จ: " + err.message);
-
         location.reload();
-
     }
-
 }
 
 </script>
