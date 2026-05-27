@@ -3,278 +3,969 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rating Dashboard</title>
+<title>Employee QR Rating System</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-:root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --primary: #60a5fa;
-    --success: #10b981;
-    --warning: #fbbf24;
-    --border: #334155;
+:root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --primary:#60a5fa;
+    --success:#10b981;
+    --warning:#fbbf24;
 }
 
-body {
-    margin: 0;
-    font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+body{
+    margin:0;
+    font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+    background:var(--bg);
+    color:var(--text);
 }
 
-header {
-    text-align: center;
-    padding: 20px;
-    font-weight: 800;
-    color: var(--primary);
-    background: rgba(30,41,59,.9);
-    letter-spacing: 1px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+header{
+    text-align:center;
+    padding:18px;
+    font-weight:800;
+    color:var(--primary);
+    background:rgba(30,41,59,.8);
+    letter-spacing:1px;
 }
 
-.container {
-    max-width: 1000px;
-    margin: auto;
-    padding: 20px;
+.container{
+    max-width:520px;
+    margin:auto;
+    padding:18px;
 }
 
-/* --- SUMMARY CARDS --- */
-.summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 25px;
+#reader{
+    border-radius:16px;
+    overflow:hidden;
 }
 
-.stat-card {
-    background: var(--card);
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    border: 1px solid var(--border);
+.status{
+    margin-top:12px;
+    padding:12px;
+    background:var(--card);
+    border-radius:12px;
+    text-align:center;
+    color:var(--muted);
+    font-weight:600;
 }
 
-.stat-title {
-    color: var(--muted);
-    font-size: 14px;
-    margin-bottom: 10px;
+button{
+    width:100%;
+    margin-top:12px;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    font-weight:700;
+    cursor:pointer;
+    font-size:16px;
 }
 
-.stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--success);
+#processBtn{
+    background:#2563eb;
+    color:white;
 }
 
-/* --- TABLE --- */
-.table-container {
-    background: var(--card);
-    border-radius: 12px;
-    overflow-x: auto;
-    border: 1px solid var(--border);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    white-space: nowrap;
-}
-
-th, td {
-    padding: 14px 16px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-}
-
-th {
-    background: rgba(15,23,42,.5);
-    color: var(--muted);
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-tr:last-child td {
-    border-bottom: none;
-}
-
-tr:hover {
-    background: rgba(255,255,255,0.02);
-}
-
-/* --- ELEMENTS --- */
-.stars {
-    color: var(--warning);
-    font-size: 16px;
-    letter-spacing: 2px;
-}
-
-.code-badge {
-    background: rgba(96, 165, 250, 0.15);
-    color: var(--primary);
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 13px;
-}
-
-.btn-img {
-    background: var(--primary);
-    color: white;
-    text-decoration: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.loading {
-    text-align: center;
-    padding: 50px;
-    color: var(--muted);
+#scanCount{
+    text-align:center;
+    margin-top:10px;
+    color:var(--muted);
 }
 </style>
 </head>
+
 <body>
 
-<header>RATING DASHBOARD</header>
+<header>STAFF QR RATING SYSTEM</header>
 
 <div class="container">
-    
-    <div class="summary-grid">
-        <div class="stat-card">
-            <div class="stat-title">จำนวนการประเมินทั้งหมด</div>
-            <div class="stat-value" id="totalCount">-</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-title">คะแนนเฉลี่ยรวม</div>
-            <div class="stat-value" id="avgRating" style="color: var(--warning);">-</div>
-        </div>
+    <div id="reader"></div>
+
+    <div id="statusBox" class="status">
+        ● Ready to scan
     </div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>วันที่ - เวลา</th>
-                    <th>รหัสพนักงาน</th>
-                    <th>ชื่อ-สกุล</th>
-                    <th>คะแนน</th>
-                    <th>ผู้ประเมิน</th>
-                    <th>รูปถ่าย</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody">
-                <tr>
-                    <td colspan="6" class="loading">⟳ กำลังโหลดข้อมูล...</td>
-                </tr>
-            </tbody>
-        </table>
+    <button id="processBtn" onclick="processEmployees()">
+        ประมวลผลรายชื่อ
+    </button>
+
+    <div id="scanCount">
+        สแกนแล้ว 0 คน
     </div>
 
+    <div id="result"></div>
 </div>
 
 <script>
-// ================= ใส่ URL ของ Apps Script ตรงนี้ =================
-const DASHBOARD_API = "https://script.google.com/macros/s/AKfycbzP9DP86WyhBPWOPpYr2jSXe1lRRO7hZV36AFzZEgM_aywDNtSSijrJv4BGyoYwEe0hmg/exec"; 
 
-async function loadDashboard() {
-    try {
-        const res = await fetch(DASHBOARD_API + "?t=" + Date.now());
-        const json = await res.json();
+// ================= EMPLOYEE API =================
+const EMPLOYEE_API =
+"https://script.google.com/macros/s/AKfycbyq043zH5hch1qhi0DMctbKokrLJrgPNhc8S1fq1XKsoFedt1E5sMVSpMbuCAX2zStNfA/exec";
 
-        if(json.status !== "success") {
-            throw new Error(json.message);
-        }
+const SAVE_API =
+"https://script.google.com/macros/s/AKfycbwCWEKxqMGYRhppV36ayZzR_loPk4UgzWhcpnLFX3buGbsl379AF3S_-XJ2jBhXxh7oEA/exec";
 
-        const data = json.data;
-        renderDashboard(data);
+// ================= VARIABLES =================
+let scanner;
+let scanned = [];
+let finalList = [];
+let employeeMap = {};
+let cameraPermission = false;
 
-    } catch(err) {
-        document.getElementById("tableBody").innerHTML = `
-            <tr><td colspan="6" style="text-align:center; color:#ef4444; padding:30px;">
-                ✖ ดึงข้อมูลไม่สำเร็จ: ${err.message}
-            </td></tr>
-        `;
+// ================= PRELOAD CAMERA =================
+async function preloadCameraPermission(){
+
+    try{
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+                video:true
+            });
+
+        stream
+            .getTracks()
+            .forEach(track=>track.stop());
+
+        cameraPermission = true;
+
+        console.log(
+            "Camera permission granted"
+        );
+
+    }catch(err){
+
+        console.log(
+            "Camera permission denied"
+        );
+
+        cameraPermission = false;
     }
 }
 
-function renderDashboard(data) {
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = "";
+// ================= START SCANNER =================
+async function startScanner(){
 
-    if(data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="loading">ยังไม่มีข้อมูลการประเมิน</td></tr>`;
-        document.getElementById("totalCount").innerText = "0";
-        document.getElementById("avgRating").innerText = "0.0";
+    scanner =
+        new Html5Qrcode("reader");
+
+    await scanner.start(
+
+        {
+            facingMode:"environment"
+        },
+
+        {
+            fps:10,
+            qrbox:250
+        },
+
+        onScan
+    );
+
+    setStatus("idle","");
+}
+
+// ================= STATUS =================
+function setStatus(type,text){
+
+    const el =
+        document.getElementById(
+            "statusBox"
+        );
+
+    if(!el) return;
+
+    if(type==="idle"){
+
+        el.innerHTML =
+            "● Ready to scan";
+
+        el.style.color =
+            "#94a3b8";
+    }
+
+    if(type==="scan"){
+
+        el.innerHTML =
+            "⟳ Processing...";
+
+        el.style.color =
+            "#fbbf24";
+    }
+
+    if(type==="success"){
+
+        el.innerHTML =
+            "✔ " + text;
+
+        el.style.color =
+            "#10b981";
+    }
+
+    if(type==="error"){
+
+        el.innerHTML =
+            "✖ " + text;
+
+        el.style.color =
+            "#ef4444";
+    }
+}
+
+// ================= SCAN =================
+async function onScan(decodedText){
+
+    setStatus("scan","");
+
+    try{
+
+        await scanner.pause();
+
+    }catch(err){}
+
+    const raw =
+        decodedText.trim();
+
+    // ================= QR FORMAT =================
+    const pattern =
+        /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=([A-Z0-9]+)$/i;
+
+    const match =
+        raw.match(pattern);
+
+    // ================= INVALID =================
+    if(!match){
+
+        setStatus(
+            "error",
+            "QR นี้ไม่ใช่รหัสพนักงาน"
+        );
+
+        setTimeout(async ()=>{
+
+            setStatus("idle","");
+
+            try{
+                await scanner.resume();
+            }catch(err){}
+
+        },1000);
+
         return;
     }
 
-    let totalScore = 0;
+    // ================= GET CODE =================
+    const code =
+        match[1]
+        .trim()
+        .toUpperCase();
 
-    data.forEach(row => {
-        totalScore += row.rating;
+    // ================= DUPLICATE =================
+    const dup =
+        scanned.find(
+            e => e.code === code
+        );
 
-        // วาดดาวตามคะแนน
-        let starsHtml = "";
-        for(let i=1; i<=5; i++) {
-            starsHtml += i <= row.rating ? "★" : "<span style='color:#475569'>★</span>";
-        }
+    if(!dup){
 
-        // ================= จัดการรูปภาพ =================
-        let imgHtml = `<span style="color:var(--muted); font-size:12px;">ไม่มีรูป</span>`;
-        
-        if (row.image && row.image.trim() !== "") {
-            // ดึง ID ไฟล์จากลิงก์ Google Drive
-            const match = row.image.match(/\/d\/(.+?)\//);
-            
-            if (match && match[1]) {
-                const fileId = match[1];
-                const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w100`;
-                
-                imgHtml = `
-                    <a href="${row.image}" target="_blank" style="display:inline-block; text-decoration:none;">
-                        <img src="${thumbnailUrl}" 
-                             style="width:45px; height:45px; border-radius:8px; object-fit:cover; border:2px solid var(--border); transition:transform 0.2s;" 
-                             onmouseover="this.style.transform='scale(1.1)'"
-                             onmouseout="this.style.transform='scale(1)'"
-                             title="คลิกเพื่อดูรูปขนาดเต็ม"
-                             alt="Selfie"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                        <span style="display:none; color:var(--primary); font-size:12px;" class="fallback-text">📸 ดูรูป</span>
-                    </a>
-                `;
-            } else {
-                imgHtml = `<a href="${row.image}" target="_blank" class="btn-img">📸 ดูรูป</a>`;
+        scanned.push({
+
+            code:code,
+            rating:0
+
+        });
+
+        updateCount();
+    }
+
+    setStatus(
+        "success",
+        code
+    );
+
+    setTimeout(async ()=>{
+
+        setStatus("idle","");
+
+        try{
+            await scanner.resume();
+        }catch(err){}
+
+    },700);
+}
+
+// ================= UPDATE COUNT =================
+function updateCount(){
+
+    document.getElementById(
+        "scanCount"
+    ).innerText =
+
+        "สแกนแล้ว " +
+        scanned.length +
+        " คน";
+}
+
+// ================= LOAD EMPLOYEE =================
+async function loadEmployees(){
+
+    const res =
+        await fetch(
+            EMPLOYEE_API + "?t=" + Date.now()
+        );
+
+    if(!res.ok){
+
+        throw new Error(
+            "โหลดรายชื่อไม่สำเร็จ"
+        );
+    }
+
+    const data =
+        await res.json();
+
+    employeeMap = {};
+
+    data.forEach(emp=>{
+
+        employeeMap[
+            String(emp.code)
+            .trim()
+            .toUpperCase()
+        ] = emp.name;
+
+    });
+}
+
+// ================= PROCESS =================
+async function processEmployees(){
+
+    if(scanned.length===0){
+
+        alert("ยังไม่มีข้อมูล");
+
+        return;
+    }
+
+    // ================= LOADING =================
+    document.body.innerHTML = `
+
+        <div style="
+            position:fixed;
+            inset:0;
+            background:#0f172a;
+
+            display:flex;
+            flex-direction:column;
+
+            align-items:center;
+            justify-content:center;
+
+            color:white;
+            font-family:Segoe UI;
+        ">
+
+            <div style="
+                width:70px;
+                height:70px;
+
+                border:6px solid #334155;
+                border-top:6px solid #60a5fa;
+
+                border-radius:50%;
+
+                animation:spin 1s linear infinite;
+            "></div>
+
+            <div style="
+                margin-top:20px;
+                font-size:22px;
+                font-weight:700;
+            ">
+                กำลังประมวลผลรายชื่อ
+            </div>
+
+        </div>
+
+        <style>
+
+        @keyframes spin{
+
+            0%{
+                transform:rotate(0deg);
+            }
+
+            100%{
+                transform:rotate(360deg);
             }
         }
 
-        // สร้างแถวตาราง
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td style="color:var(--muted); font-size:13px;">
-                ${row.date} <br> ${row.time}
-            </td>
-            <td><span class="code-badge">${row.code}</span></td>
-            <td style="font-weight:600;">${row.name}</td>
-            <td class="stars">${starsHtml}</td>
-            <td style="font-family:monospace; color:var(--muted);">${row.evaluator}</td>
-            <td>${imgHtml}</td>
-        `;
-        tbody.appendChild(tr);
-    });
+        </style>
+    `;
 
-    // อัปเดต Summary Cards
-    const avg = (totalScore / data.length).toFixed(1);
-    document.getElementById("totalCount").innerText = data.length;
-    document.getElementById("avgRating").innerText = avg + " ★";
+    try{
+
+        await loadEmployees();
+
+        finalList =
+            scanned.map(emp=>({
+
+                code:emp.code,
+
+                name:
+                    employeeMap[emp.code]
+                    || "Unknown",
+
+                rating:0
+            }));
+
+        // ================= RESTORE PAGE =================
+        document.body.innerHTML = `
+
+            <header style="
+                text-align:center;
+                padding:18px;
+                font-weight:800;
+                color:#60a5fa;
+                background:rgba(30,41,59,.8);
+                font-family:Segoe UI;
+            ">
+                STAFF QR RATING SYSTEM
+            </header>
+
+            <div class="container" style="
+                max-width:520px;
+                margin:auto;
+                padding:18px;
+            ">
+
+                <div id="result"></div>
+
+            </div>
+        `;
+
+        render();
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(
+            "โหลดรายชื่อไม่สำเร็จ"
+        );
+
+        location.reload();
+    }
 }
 
-// เริ่มต้นทำงานทันทีที่เปิดหน้าเว็บ
-window.onload = loadDashboard;
+// ================= RENDER =================
+function render(){
+
+    const box =
+        document.getElementById(
+            "result"
+        );
+
+    box.innerHTML = "";
+
+    // ================= EVALUATOR =================
+    box.innerHTML += `
+
+        <div style="
+            background:#1e293b;
+            padding:14px;
+            border-radius:12px;
+            margin-bottom:12px;
+        ">
+
+            <div style="
+                margin-bottom:8px;
+                color:#94a3b8;
+                font-size:14px;
+            ">
+                รหัสพนักงานผู้ประเมิน
+            </div>
+
+            <input
+                type="text"
+                id="evaluatorId"
+                placeholder="เช่น K0123"
+
+                style="
+                    width:100%;
+                    padding:12px;
+
+                    border:none;
+                    border-radius:10px;
+
+                    background:#0f172a;
+                    color:white;
+
+                    font-size:16px;
+                    box-sizing:border-box;
+                "
+            >
+
+        </div>
+    `;
+
+    // ================= EMPLOYEE =================
+    finalList.forEach((e,i)=>{
+
+        let stars = "";
+
+        for(let n=1;n<=5;n++){
+
+            stars += `
+
+                <span
+                    onclick="rate(${i},${n})"
+
+                    style="
+                        font-size:30px;
+                        cursor:pointer;
+
+                        color:
+                        ${
+                            n<=e.rating
+                            ? '#fbbf24'
+                            : '#475569'
+                        };
+                    "
+                >
+                    ★
+                </span>
+            `;
+        }
+
+        box.innerHTML += `
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+
+                background:#1e293b;
+
+                padding:12px;
+                margin-top:10px;
+
+                border-radius:12px;
+            ">
+
+                <div>
+
+                    <div style="
+                        color:#60a5fa;
+                        font-weight:700;
+                        font-size:17px;
+                    ">
+                        ${e.name}
+                    </div>
+
+                    <div style="
+                        color:#94a3b8;
+                        font-size:13px;
+                        margin-top:4px;
+                        font-family:monospace;
+                    ">
+                        ${e.code}
+                    </div>
+
+                </div>
+
+                <div>
+                    ${stars}
+                </div>
+
+            </div>
+        `;
+    });
+
+    // ================= BUTTON =================
+    box.innerHTML += `
+
+        <button
+            onclick="send()"
+
+            style="
+                margin-top:15px;
+                background:#10b981;
+                color:white;
+            "
+        >
+            ส่งข้อมูล
+        </button>
+
+        <button
+            onclick="location.reload()"
+
+            style="
+                margin-top:10px;
+                background:transparent;
+                border:1px solid #475569;
+                color:#94a3b8;
+            "
+        >
+            เริ่มใหม่
+        </button>
+    `;
+}
+
+// ================= RATE =================
+function rate(i,n){
+
+    finalList[i].rating = n;
+
+    render();
+
+    const input =
+        document.getElementById(
+            "evaluatorId"
+        );
+
+    if(
+        input &&
+        window.savedEvaluator
+    ){
+
+        input.value =
+            window.savedEvaluator;
+    }
+}
+
+// ================= CAPTURE SELFIE =================
+async function captureSelfie(){
+
+    try{
+
+        // ================= STOP QR CAMERA =================
+        if(scanner){
+
+            try{
+
+                await scanner.stop();
+
+            }catch(err){
+
+                console.log(err);
+            }
+        }
+
+        // ================= OPEN FRONT CAMERA =================
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video:{
+                    facingMode:"user",
+                    width:{ ideal:480 },
+                    height:{ ideal:640 }
+                }
+
+            });
+
+        const video =
+            document.createElement(
+                "video"
+            );
+
+        video.srcObject =
+            stream;
+
+        video.playsInline = true;
+
+        await video.play();
+
+        // ================= WAIT =================
+        await new Promise(
+            r => setTimeout(r,1200)
+        );
+
+        // ================= CANVAS =================
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
+
+        canvas.width =
+            video.videoWidth;
+
+        canvas.height =
+            video.videoHeight;
+
+        const ctx =
+            canvas.getContext("2d");
+
+        ctx.drawImage(
+            video,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+        // ================= STOP FRONT CAMERA =================
+        stream
+            .getTracks()
+            .forEach(track=>track.stop());
+
+        // ================= COMPRESS =================
+        return canvas.toDataURL(
+            "image/jpeg",
+            0.35
+        );
+
+    }catch(err){
+
+        console.error(err);
+
+        return "";
+    }
+}
+
+// ================= SEND =================
+async function send(){
+
+    try{
+
+        const evaluator =
+            document
+            .getElementById(
+                "evaluatorId"
+            )
+            .value
+            .trim()
+            .toUpperCase();
+
+        // ================= CHECK =================
+        if(evaluator===""){
+
+            alert(
+                "กรุณากรอกรหัสพนักงานผู้ประเมิน"
+            );
+
+            return;
+        }
+
+        const empty =
+            finalList.find(
+                e => e.rating===0
+            );
+
+        if(empty){
+
+            alert(
+                "ให้คะแนนไม่ครบ"
+            );
+
+            return;
+        }
+
+        // ================= LOADING =================
+        document.body.innerHTML = `
+
+            <div style="
+                position:fixed;
+                inset:0;
+
+                background:#0f172a;
+
+                display:flex;
+                flex-direction:column;
+
+                align-items:center;
+                justify-content:center;
+
+                color:white;
+                font-family:Segoe UI;
+            ">
+
+                <div style="
+                    width:70px;
+                    height:70px;
+
+                    border:6px solid #334155;
+                    border-top:6px solid #10b981;
+
+                    border-radius:50%;
+
+                    animation:spin 1s linear infinite;
+                "></div>
+
+                <div style="
+                    margin-top:20px;
+                    font-size:22px;
+                    font-weight:700;
+                ">
+                    กำลังบันทึกข้อมูล
+                </div>
+
+            </div>
+
+            <style>
+
+            @keyframes spin{
+
+                0%{
+                    transform:rotate(0deg);
+                }
+
+                100%{
+                    transform:rotate(360deg);
+                }
+            }
+
+            </style>
+        `;
+
+        // ================= SELFIE =================
+        const selfie =
+            await captureSelfie();
+
+        // ================= SEND =================
+                const formData = new FormData();
+
+                formData.append(
+                    "payload",
+                    JSON.stringify({
+
+                        evaluator:evaluator,
+                        selfie:selfie,
+                        data:finalList
+
+                    })
+                );
+
+                const res = await fetch(
+                    SAVE_API,
+                    {
+                        method:"POST",
+                        body:formData
+                    }
+                );
+
+        // ================= CHECK RESPONSE =================
+        if(!res.ok){
+
+            throw new Error(
+                "HTTP ERROR : " +
+                res.status
+            );
+        }
+
+        const result =
+            await res.json();
+
+        console.log(result);
+
+        // ================= CHECK SUCCESS =================
+        if(
+            result.status !== "success"
+        ){
+
+            throw new Error(
+                result.message ||
+                "Server Error"
+            );
+        }
+
+        // ================= SUCCESS PAGE =================
+        document.body.innerHTML = `
+
+            <div style="
+                height:100vh;
+
+                display:flex;
+                flex-direction:column;
+
+                align-items:center;
+                justify-content:center;
+
+                background:#0f172a;
+
+                color:white;
+
+                font-family:Segoe UI;
+                text-align:center;
+            ">
+
+                <div style="
+                    font-size:70px;
+                    margin-bottom:20px;
+                ">
+                    ✔
+                </div>
+
+                <div style="
+                    font-size:24px;
+                    font-weight:700;
+                    margin-bottom:10px;
+                ">
+                    ส่งข้อมูลสำเร็จ
+                </div>
+
+                <div style="
+                    color:#94a3b8;
+                    font-size:15px;
+                ">
+                    สามารถปิดหน้านี้ได้เลย
+                </div>
+
+            </div>
+        `;
+
+        // ================= TRY CLOSE =================
+        setTimeout(()=>{
+
+            window.open(
+                '',
+                '_self'
+            );
+
+            window.close();
+
+        },1500);
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(
+            "ส่งข้อมูลไม่สำเร็จ : " +
+            err
+        );
+
+        location.reload();
+    }
+}
+
+// ================= SAVE INPUT =================
+document.addEventListener(
+    "input",
+    (e)=>{
+
+        if(
+            e.target.id==="evaluatorId"
+        ){
+
+            window.savedEvaluator =
+                e.target.value;
+        }
+    }
+);
+
+// ================= START =================
+window.onload = async ()=>{
+
+    await preloadCameraPermission();
+
+    await startScanner();
+};
 
 </script>
 </body>
