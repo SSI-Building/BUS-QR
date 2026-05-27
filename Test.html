@@ -261,10 +261,25 @@ function processData(){
                     </div>
         `;
 
-        // สร้างกล่องแสดง UUID
+// สร้างกล่องแสดง UUID
         scannedUUIDs.forEach(uuid=>{
             html += `
-                <div style="margin-top:10px; padding:12px; background:#0f172a; border-radius:10px; word-break:break-all; font-family:monospace; color:white; font-size:14px;">
+                <div style="
+                    margin-top:10px; 
+                    padding:12px; 
+                    background:#0f172a; 
+                    border-radius:10px; 
+                    word-break:break-all; 
+                    font-family:monospace; 
+                    color:white; 
+                    font-size:14px;
+                    /* --- เพิ่มส่วนนี้เพื่อล็อกการแก้ไข --- */
+                    -webkit-user-select: none; /* ห้ามเลือกข้อความ */
+                    user-select: none;
+                    pointer-events: none;      /* ห้ามคลิกหรือกดค้างที่ข้อความ */
+                    border: 1px solid #334155; /* เพิ่มเส้นขอบบางๆ ให้ดูเป็นกล่องที่แก้ไขไม่ได้ */
+                    /* ---------------------------------- */
+                ">
                     ${uuid}
                 </div>
             `;
