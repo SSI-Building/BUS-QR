@@ -112,21 +112,18 @@
         document.getElementById("scanCount").innerHTML = "สแกนแล้ว " + scannedUUIDs.length + " รายการ";
     }
 
-    function processData() {
+function processData() {
         if (scannedUUIDs.length === 0) { alert("ยังไม่มีข้อมูล"); return; }
         try { if(scanner) scanner.stop(); } catch(err) {}
 
-        document.body.innerHTML = `
-            <div style="position:fixed; inset:0; background:#0f172a; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:Segoe UI;">
-                <div style="width:70px; height:70px; border:6px solid #334155; border-top:6px solid #60a5fa; border-radius:50%; animation:spin 1s linear infinite;"></div>
-                <div style="margin-top:20px; font-size:22px; font-weight:700;">กำลังประมวลผลข้อมูล</div>
-            </div>
-            <style>@keyframes spin{ 0%{ transform:rotate(0deg); } 100%{ transform:rotate(360deg); } }</style>
-        `;
+        // --- แก้ไขจุดนี้: ดึงค่าที่จำไว้มาแสดง ---
+        const savedScannerId = localStorage.getItem("scannerId") || "";
+
+        document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; color:white;">กำลังประมวลผล...</div>`;
 
         setTimeout(() => {
             let html = `
-                <header style="text-align:center; padding:18px; font-weight:800; color:#60a5fa; background:rgba(30,41,59,.8); font-size:22px;">BUS QR SCANNER</header>
+                <header style="text-align:center; padding:18px; color:#60a5fa; font-size:22px;">BUS QR SCANNER</header>
                 <div class="container" style="max-width:520px; margin:auto; padding:18px;">
                     <div style="background:#1e293b; border-radius:16px; padding:18px;">
                         <div style="margin-bottom:12px; font-weight:700; color:#60a5fa; font-size:18px;">UUID ที่สแกน</div>
@@ -138,7 +135,9 @@
 
             html += `
                         <div style="margin-top:22px; color:#94a3b8; font-size:15px;">รหัสพนักงานผู้สแกน</div>
-                        <input id="scannerId" placeholder="เช่น K0123" style="width:100%; padding:14px; border:none; border-radius:10px; background:#0f172a; color:white; font-size:16px; margin-top:5px; box-sizing:border-box;">
+                        <input id="scannerId" placeholder="เช่น K0123" value="${savedScannerId}" 
+                               style="width:100%; padding:14px; border:none; border-radius:10px; background:#0f172a; color:white; font-size:16px; margin-top:5px; box-sizing:border-box;">
+                        
                         <button onclick="sendData()" style="background:#10b981; color:white; margin-top:20px;">ส่งข้อมูล</button>
                         <button onclick="location.reload()" style="background:transparent; border:1px solid #475569; color:#94a3b8; margin-top:12px;">ยกเลิก / เริ่มใหม่</button>
                     </div>
@@ -166,6 +165,7 @@
         const scannerId = document.getElementById("scannerId").value.trim().toUpperCase();
         if (!scannerId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
         localStorage.setItem("scannerId", scannerId);
+        
         
         document.body.innerHTML = `<div style="height:100vh; display:flex; justify-content:center; align-items:center; background:#0f172a; color:white;">กำลังบันทึกข้อมูล...</div>`;
         
