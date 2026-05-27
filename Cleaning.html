@@ -21,7 +21,6 @@
 body {
     margin: 0;
     padding: 20px;
-    /* เปลี่ยนสีพื้นหลังเป็น Gradient ให้ดูมีมิติ */
     background: linear-gradient(135deg, #f0fdf4 0%, #e0e7ff 100%);
     font-family: 'Prompt', sans-serif;
     min-height: 100vh;
@@ -37,7 +36,6 @@ body {
     background: #ffffff;
     border-radius: 24px;
     padding: 30px 25px;
-    /* เพิ่มเงาแบบนุ่มนวล (Soft Shadow) */
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
     border: 1px solid rgba(255, 255, 255, 0.8);
 }
@@ -159,7 +157,6 @@ button:active {
     to { transform: translateY(-6px); }
 }
 
-/* ปรับ Watermark ให้เป็น Badge ทันสมัย */
 .watermark {
     position: absolute;
     top: -10px;
@@ -222,7 +219,6 @@ button:active {
 </div>
 
 <script>
-
 // ========================================
 // CONFIG
 // ========================================
@@ -244,7 +240,6 @@ let isQRActive = false;
 // ========================================
 // DISABLE RIGHT CLICK
 // ========================================
-
 document.addEventListener("contextmenu", (e) => {
     e.preventDefault();
 });
@@ -252,7 +247,6 @@ document.addEventListener("contextmenu", (e) => {
 // ========================================
 // LOGIN
 // ========================================
-
 async function loginLine() {
     try {
         document.getElementById("result").innerHTML = `
@@ -287,7 +281,6 @@ async function loginLine() {
 
         const data = result.data;
 
-        // SHOW USER (ซ่อนคอลัมน์ C หรือ "หน่วยงาน" แล้ว)
         document.getElementById("result").innerHTML = `
             <div class="success">
                 ✔ เข้าสู่ระบบสำเร็จ
@@ -324,7 +317,6 @@ async function loginLine() {
 // ========================================
 // CREATE QR
 // ========================================
-
 async function createQR() {
     try {
         if (isQRActive) {
@@ -345,6 +337,8 @@ async function createQR() {
             isQRActive = false;
             return;
         }
+        
+        const currentUUID = result.uuid; // เก็บค่า UUID ไว้สำหรับเช็กสถานะ
 
         // QR AREA
         const qrArea = document.getElementById("qrcode");
@@ -366,8 +360,6 @@ async function createQR() {
         watermark.className = "watermark";
         watermark.innerText = "LIVE";
         qrBox.appendChild(watermark);
-
-        // หมายเหตุ: ลบการสร้าง HTML ของ UUID และ ลิงก์ URL ออกเรียบร้อยแล้ว
 
         // CLOCK
         updateClock();
@@ -391,12 +383,8 @@ async function createQR() {
                 clockTimer = null;
                 clearAll();
 
-                document.getElementById("countdownArea").innerHTML = `
-                    <div class="expired">
-                        ✖ QR Code หมดอายุแล้ว
-                    </div>
-                `;
-                isQRActive = false;
+                // เรียกฟังก์ชันตรวจสอบสถานะ
+                checkQRStatus(currentUUID);
             }
         }, 1000);
 
@@ -408,9 +396,41 @@ async function createQR() {
 }
 
 // ========================================
+// CHECK STATUS (ฟังก์ชันใหม่)
+// ========================================
+async function checkQRStatus(uuid) {
+    document.getElementById("countdownArea").innerHTML = "กำลังตรวจสอบสถานะ...";
+    try {
+        const response = await fetch(`${CREATE_QR_URL}?action=checkStatus&uuid=${uuid}`);
+        const result = await response.json();
+
+        if (result.success && result.saved) {
+            // ถ้าบันทึกข้อมูลแล้ว
+            document.getElementById("countdownArea").innerHTML = `
+                <div class="success" style="background: #ecfdf5; padding: 15px; border-radius: 12px; color: #10b981;">
+                    ✅ บันทึกข้อมูลแล้ว
+                </div>
+            `;
+        } else {
+            // ถ้าหมดเวลาและยังไม่ได้บันทึก
+            document.getElementById("countdownArea").innerHTML = `
+                <div class="expired">
+                    ✖ หมดเวลา
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error(err);
+        document.getElementById("countdownArea").innerHTML = `
+            <div class="expired">✖ หมดเวลา (ตรวจสอบสถานะไม่ได้)</div>
+        `;
+    }
+    isQRActive = false;
+}
+
+// ========================================
 // CLOCK
 // ========================================
-
 function updateClock() {
     const now = new Date();
     document.getElementById("liveTime").innerHTML = now.toLocaleTimeString("th-TH");
@@ -419,7 +439,6 @@ function updateClock() {
 // ========================================
 // CLEAR
 // ========================================
-
 function clearAll() {
     document.getElementById("qrcode").innerHTML = "";
     document.getElementById("liveTime").innerHTML = "";
