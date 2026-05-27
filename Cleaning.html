@@ -6,20 +6,22 @@
 <meta charset="UTF-8">
 
 <meta name="viewport"
-content="width=device-width,initial-scale=1">
+content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
 <title>Employee QR System</title>
 
-<!-- LIFF SDK -->
+<!-- LIFF -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-<!-- QRCode -->
+<!-- QR -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
 
 *{
     box-sizing:border-box;
+    -webkit-user-select:none;
+    user-select:none;
 }
 
 body{
@@ -28,6 +30,7 @@ body{
     padding:20px;
     background:#f3f4f6;
     font-family:sans-serif;
+    overflow-x:hidden;
 
 }
 
@@ -35,7 +38,7 @@ body{
 
     max-width:500px;
     margin:auto;
-    background:#ffffff;
+    background:#fff;
     border-radius:20px;
     padding:25px;
     box-shadow:0 4px 15px rgba(0,0,0,.1);
@@ -58,13 +61,6 @@ button{
     padding:15px;
     font-size:16px;
     cursor:pointer;
-    transition:.2s;
-
-}
-
-button:hover{
-
-    opacity:.9;
 
 }
 
@@ -97,14 +93,12 @@ button:hover{
 
     margin-bottom:12px;
     word-break:break-all;
-    font-size:15px;
 
 }
 
 .label{
 
     font-weight:bold;
-    color:#111827;
 
 }
 
@@ -112,7 +106,6 @@ button:hover{
 
     text-align:center;
     margin-top:20px;
-    color:#6b7280;
 
 }
 
@@ -138,6 +131,26 @@ button:hover{
     margin-top:20px;
     display:flex;
     justify-content:center;
+    position:relative;
+
+}
+
+/* QR animation */
+#qrcode img{
+
+    animation: floatQR .8s infinite alternate;
+
+}
+
+@keyframes floatQR{
+
+    from{
+        transform:translateY(0px);
+    }
+
+    to{
+        transform:translateY(-5px);
+    }
 
 }
 
@@ -145,9 +158,9 @@ button:hover{
 
     margin-top:15px;
     text-align:center;
-    font-size:13px;
+    font-size:12px;
     word-break:break-all;
-    color:#374151;
+    color:#6b7280;
 
 }
 
@@ -160,6 +173,48 @@ button:hover{
     font-size:13px;
     word-break:break-all;
     text-align:center;
+
+}
+
+#countdownArea{
+
+    margin-top:15px;
+    text-align:center;
+    font-size:22px;
+    font-weight:bold;
+    color:#dc2626;
+
+}
+
+#liveTime{
+
+    margin-top:10px;
+    text-align:center;
+    font-size:20px;
+    font-weight:bold;
+    color:#2563eb;
+
+}
+
+.expired{
+
+    color:#dc2626;
+    font-weight:bold;
+    text-align:center;
+    margin-top:20px;
+
+}
+
+.watermark{
+
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%) rotate(-20deg);
+    font-size:22px;
+    color:rgba(255,0,0,.15);
+    font-weight:bold;
+    pointer-events:none;
 
 }
 
@@ -185,8 +240,6 @@ button:hover{
 
 </div>
 
-
-
 <script>
 
 // ========================================
@@ -196,38 +249,37 @@ button:hover{
 const LIFF_ID =
 "2007956727-fT3yQmc0";
 
-
-// ========================================
-// SCRIPT 1
-// FIND USER
-// ========================================
 const FIND_USER_URL =
 "https://script.google.com/macros/s/AKfycbw6nPMipi-MAtOo_WCdJG3YV8W5MEevzmSh_91TjaVBXeT6r77zJSjX52_iJHmBbkPk/exec";
 
-
-// ========================================
-// SCRIPT 2
-// CREATE QR
-// ========================================
 const CREATE_QR_URL =
 "https://script.google.com/macros/s/AKfycbwELK7MPED2yM2IIYKxEB6el7tNTiL5C6IbPRjKXqUBsRZ_a7MqmWb0VXithGe87Nii/exec";
-
 
 // ========================================
 // GLOBAL
 // ========================================
+
 let currentLineUserId = "";
+let qrCountdown = null;
+let clockTimer = null;
+let isQRActive = false;
 
+// ========================================
+// DISABLE RIGHT CLICK
+// ========================================
 
+document.addEventListener("contextmenu",e=>{
+    e.preventDefault();
+});
 
 // ========================================
 // LOGIN
 // ========================================
+
 async function loginLine(){
 
     try{
 
-        // ===== loading =====
         document.getElementById("result")
         .innerHTML = `
             <div class="loading">
@@ -235,16 +287,10 @@ async function loginLine(){
             </div>
         `;
 
-        // ========================================
-        // INIT LIFF
-        // ========================================
         await liff.init({
             liffId: LIFF_ID
         });
 
-        // ========================================
-        // LOGIN
-        // ========================================
         if(!liff.isLoggedIn()){
 
             liff.login();
@@ -252,123 +298,63 @@ async function loginLine(){
 
         }
 
-        // ========================================
-        // PROFILE
-        // ========================================
         const profile =
         await liff.getProfile();
 
-        // ========================================
-        // LINE USER ID
-        // ========================================
-        const lineUserId =
+        currentLineUserId =
         profile.userId;
 
-        currentLineUserId =
-        lineUserId;
-
-        console.log(lineUserId);
-
-        // ========================================
-        // FETCH USER
-        // ========================================
         const response =
         await fetch(
-            `${FIND_USER_URL}?lineUserId=${lineUserId}`
+            `${FIND_USER_URL}?lineUserId=${currentLineUserId}`
         );
 
-        // ========================================
-        // TEXT
-        // ========================================
-        const text =
-        await response.text();
-
-        console.log(text);
-
-        // ========================================
-        // JSON
-        // ========================================
         const result =
-        JSON.parse(text);
+        await response.json();
 
-        // ========================================
-        // FAIL
-        // ========================================
         if(!result.success){
 
             document.getElementById("result")
             .innerHTML = `
-
                 <div class="error">
-
                     ${result.message}
-
                 </div>
-
             `;
 
             return;
-
         }
 
-        // ========================================
-        // DATA
-        // ========================================
         const data =
         result.data;
 
-        // ========================================
-        // SHOW USER
-        // ========================================
         document.getElementById("result")
         .innerHTML = `
 
             <div class="success">
-
                 Login สำเร็จ
-
             </div>
 
             <div class="info-box">
 
                 <div class="row">
-
                     <span class="label">
-                        รหัสพนักงาน :
+                    รหัสพนักงาน :
                     </span>
-
                     ${data.colA}
-
                 </div>
 
                 <div class="row">
-
                     <span class="label">
-                        ชื่อ - สกุล :
+                    ชื่อ-สกุล :
                     </span>
-
                     ${data.colB}
-
                 </div>
 
                 <div class="row">
-
                     <span class="label">
-                        หน่วยงาน :
+                    หน่วยงาน :
                     </span>
-
                     ${data.colC}
-
-                </div>
-
-                <div class="row">
-
-                    <span class="label">
-                        LINE User ID :
-                    </span>
-
-                    ${data.colD}
-
                 </div>
 
                 <button
@@ -380,6 +366,10 @@ async function loginLine(){
                 </button>
 
                 <div id="qrcode"></div>
+
+                <div id="liveTime"></div>
+
+                <div id="countdownArea"></div>
 
                 <div id="uuidArea"></div>
 
@@ -395,70 +385,51 @@ async function loginLine(){
 
         document.getElementById("result")
         .innerHTML = `
-
             <div class="error">
-
                 ${err}
-
             </div>
-
         `;
 
     }
 
 }
 
-
-
 // ========================================
 // CREATE QR
 // ========================================
+
 async function createQR(){
 
     try{
 
-        // ========================================
-        // CLEAR OLD
-        // ========================================
-        document.getElementById("qrcode")
-        .innerHTML = "";
+        // กันกดซ้ำ
+        if(isQRActive){
 
-        document.getElementById("uuidArea")
-        .innerHTML = "";
+            alert("QR Code กำลังทำงานอยู่");
+            return;
 
-        document.getElementById("linkArea")
-        .innerHTML = "";
+        }
+
+        isQRActive = true;
+
+        clearAll();
 
         // ========================================
         // FETCH CREATE QR
         // ========================================
+
         const response =
         await fetch(
-
             `${CREATE_QR_URL}?lineUserId=${currentLineUserId}`
-
         );
 
-        // ========================================
-        // TEXT
-        // ========================================
-        const text =
-        await response.text();
-
-        console.log(text);
-
-        // ========================================
-        // JSON
-        // ========================================
         const result =
-        JSON.parse(text);
+        await response.json();
 
-        // ========================================
-        // FAIL
-        // ========================================
         if(!result.success){
 
             alert(result.message);
+            isQRActive = false;
             return;
 
         }
@@ -466,6 +437,7 @@ async function createQR(){
         // ========================================
         // GENERATE QR
         // ========================================
+
         new QRCode(
 
             document.getElementById("qrcode"),
@@ -473,7 +445,6 @@ async function createQR(){
             {
 
                 text: result.qrText,
-
                 width:250,
                 height:250
 
@@ -481,9 +452,18 @@ async function createQR(){
 
         );
 
+        // watermark
+        document.getElementById("qrcode")
+        .innerHTML += `
+            <div class="watermark">
+                LIVE
+            </div>
+        `;
+
         // ========================================
         // UUID
         // ========================================
+
         document.getElementById("uuidArea")
         .innerHTML = `
 
@@ -500,6 +480,7 @@ async function createQR(){
         // ========================================
         // LINK
         // ========================================
+
         document.getElementById("linkArea")
         .innerHTML = `
 
@@ -511,13 +492,99 @@ async function createQR(){
 
         `;
 
+        // ========================================
+        // REALTIME CLOCK
+        // ========================================
+
+        updateClock();
+
+        clockTimer = setInterval(()=>{
+
+            updateClock();
+
+        },1000);
+
+        // ========================================
+        // COUNTDOWN
+        // ========================================
+
+        let timeLeft = 10;
+
+        document.getElementById("countdownArea")
+        .innerHTML =
+        `หมดอายุใน ${timeLeft} วินาที`;
+
+        qrCountdown = setInterval(()=>{
+
+            timeLeft--;
+
+            document.getElementById("countdownArea")
+            .innerHTML =
+            `หมดอายุใน ${timeLeft} วินาที`;
+
+            if(timeLeft <= 0){
+
+                clearInterval(qrCountdown);
+                clearInterval(clockTimer);
+
+                clearAll();
+
+                document.getElementById("countdownArea")
+                .innerHTML = `
+                    <div class="expired">
+                        QR Code หมดอายุแล้ว
+                    </div>
+                `;
+
+                isQRActive = false;
+
+            }
+
+        },1000);
+
     }catch(err){
 
         console.error(err);
-
         alert(err);
 
+        isQRActive = false;
+
     }
+
+}
+
+// ========================================
+// CLOCK
+// ========================================
+
+function updateClock(){
+
+    const now =
+    new Date();
+
+    document.getElementById("liveTime")
+    .innerHTML =
+    now.toLocaleTimeString("th-TH");
+
+}
+
+// ========================================
+// CLEAR
+// ========================================
+
+function clearAll(){
+
+    document.getElementById("qrcode")
+    .innerHTML = "";
+
+    document.getElementById("uuidArea")
+    .innerHTML = "";
+
+    document.getElementById("linkArea")
+    .innerHTML = "";
+
+    document.getElementById("liveTime")
+    .innerHTML = "";
 
 }
 
