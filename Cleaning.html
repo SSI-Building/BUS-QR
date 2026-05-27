@@ -253,8 +253,6 @@ button:hover{
 
 </div>
 
-<script>
-
 // ========================================
 // CONFIG
 // ========================================
@@ -262,11 +260,12 @@ button:hover{
 const LIFF_ID =
 "2007956727-fT3yQmc0";
 
+// ใช้ Web URL ใหม่
 const FIND_USER_URL =
-"https://script.google.com/macros/s/AKfycbw6nPMipi-MAtOo_WCdJG3YV8W5MEevzmSh_91TjaVBXeT6r77zJSjX52_iJHmBbkPk/exec";
+"https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 
 const CREATE_QR_URL =
-"https://script.google.com/macros/s/AKfycbwELK7MPED2yM2IIYKxEB6el7tNTiL5C6IbPRjKXqUBsRZ_a7MqmWb0VXithGe87Nii/exec";
+"https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 
 
 // ========================================
@@ -327,10 +326,10 @@ async function loginLine(){
         currentLineUserId =
         profile.userId;
 
-        // FIND USER
+        // FIND USER (ใส่ action=findUser เพื่อความชัดเจน)
         const response =
         await fetch(
-            `${FIND_USER_URL}?lineUserId=${currentLineUserId}`
+            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}`
         );
 
         const result =
@@ -454,10 +453,10 @@ async function createQR(){
         // clear เก่า
         clearAll();
 
-        // create qr
+        // create qr (ส่ง action=createQR ไปด้วย)
         const response =
         await fetch(
-            `${CREATE_QR_URL}?lineUserId=${currentLineUserId}`
+            `${CREATE_QR_URL}?action=createQR&lineUserId=${currentLineUserId}`
         );
 
         const result =
@@ -654,8 +653,6 @@ function clearAll(){
     .innerHTML = "";
 
 }
-
-</script>
 
 </body>
 </html>
