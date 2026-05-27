@@ -375,7 +375,7 @@ async function sendData(){
             throw new Error(result.message || result.error || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
         }
 
-        // ======================================
+// ======================================
         // SUCCESS
         // ======================================
         document.body.innerHTML = `
@@ -383,15 +383,31 @@ async function sendData(){
                 <div style="font-size:80px; color:#10b981;">✔</div>
                 <div style="margin-top:20px; font-size:26px; font-weight:700;">บันทึกสำเร็จ</div>
                 <div style="margin-top:10px; color:#60a5fa; font-size:16px;">อัปเดตข้อมูล ${result.updatedCount} รายการ</div>
-                <div style="margin-top:12px; color:#94a3b8;">สามารถปิดหน้านี้ได้เลย</div>
+                <div style="margin-top:12px; color:#94a3b8;">หน้าต่างจะปิดอัตโนมัติ...</div>
             </div>
         `;
 
+        // ======================================
+        // TRY CLOSE (เพิ่มโค้ดส่วนนี้เข้าไปครับ)
+        // ======================================
+        setTimeout(() => {
+            // เทคนิคหลอกเบราว์เซอร์ให้ยอมปิดหน้าต่างตัวเอง
+            window.open('', '_self');
+            window.close();
+
+            // หากเปิดผ่านแอป LINE (LIFF) สามารถเพิ่มคำสั่งนี้เพื่อให้ปิดได้ 100% (ถ้ามีการโหลด liff SDK)
+            if (typeof liff !== 'undefined') {
+                liff.closeWindow();
+            }
+        }, 1500); // 1500 คือหน่วงเวลา 1.5 วินาที ก่อนปิดหน้าเว็บ
+
     }catch(err){
+
         console.error(err);
         alert("บันทึกไม่สำเร็จ: " + err.message);
         location.reload();
     }
+
 }
 
 </script>
