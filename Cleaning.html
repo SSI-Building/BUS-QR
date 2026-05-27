@@ -13,7 +13,7 @@ content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <!-- LIFF -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
-<!-- QR -->
+<!-- QRCode -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
@@ -61,6 +61,13 @@ button{
     padding:15px;
     font-size:16px;
     cursor:pointer;
+    transition:.2s;
+
+}
+
+button:hover{
+
+    opacity:.9;
 
 }
 
@@ -106,6 +113,7 @@ button{
 
     text-align:center;
     margin-top:20px;
+    color:#6b7280;
 
 }
 
@@ -131,14 +139,19 @@ button{
     margin-top:20px;
     display:flex;
     justify-content:center;
-    position:relative;
 
 }
 
-/* QR animation */
-#qrcode img{
+.qr-box{
 
-    animation: floatQR .8s infinite alternate;
+    position:relative;
+    display:inline-block;
+
+}
+
+.qr-box img{
+
+    animation:floatQR .8s infinite alternate;
 
 }
 
@@ -151,6 +164,19 @@ button{
     to{
         transform:translateY(-5px);
     }
+
+}
+
+.watermark{
+
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%) rotate(-20deg);
+    font-size:24px;
+    font-weight:bold;
+    color:rgba(255,0,0,.15);
+    pointer-events:none;
 
 }
 
@@ -205,19 +231,6 @@ button{
 
 }
 
-.watermark{
-
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%) rotate(-20deg);
-    font-size:22px;
-    color:rgba(255,0,0,.15);
-    font-weight:bold;
-    pointer-events:none;
-
-}
-
 </style>
 
 </head>
@@ -255,6 +268,7 @@ const FIND_USER_URL =
 const CREATE_QR_URL =
 "https://script.google.com/macros/s/AKfycbwELK7MPED2yM2IIYKxEB6el7tNTiL5C6IbPRjKXqUBsRZ_a7MqmWb0VXithGe87Nii/exec";
 
+
 // ========================================
 // GLOBAL
 // ========================================
@@ -264,13 +278,17 @@ let qrCountdown = null;
 let clockTimer = null;
 let isQRActive = false;
 
+
 // ========================================
 // DISABLE RIGHT CLICK
 // ========================================
 
-document.addEventListener("contextmenu",e=>{
+document.addEventListener("contextmenu",(e)=>{
+
     e.preventDefault();
+
 });
+
 
 // ========================================
 // LOGIN
@@ -287,10 +305,14 @@ async function loginLine(){
             </div>
         `;
 
+        // INIT LIFF
         await liff.init({
+
             liffId: LIFF_ID
+
         });
 
+        // LOGIN
         if(!liff.isLoggedIn()){
 
             liff.login();
@@ -298,12 +320,14 @@ async function loginLine(){
 
         }
 
+        // PROFILE
         const profile =
         await liff.getProfile();
 
         currentLineUserId =
         profile.userId;
 
+        // FIND USER
         const response =
         await fetch(
             `${FIND_USER_URL}?lineUserId=${currentLineUserId}`
@@ -312,6 +336,7 @@ async function loginLine(){
         const result =
         await response.json();
 
+        // NOT FOUND
         if(!result.success){
 
             document.getElementById("result")
@@ -322,39 +347,52 @@ async function loginLine(){
             `;
 
             return;
+
         }
 
         const data =
         result.data;
 
+        // SHOW USER
         document.getElementById("result")
         .innerHTML = `
 
             <div class="success">
+
                 Login สำเร็จ
+
             </div>
 
             <div class="info-box">
 
                 <div class="row">
+
                     <span class="label">
                     รหัสพนักงาน :
                     </span>
+
                     ${data.colA}
+
                 </div>
 
                 <div class="row">
+
                     <span class="label">
                     ชื่อ-สกุล :
                     </span>
+
                     ${data.colB}
+
                 </div>
 
                 <div class="row">
+
                     <span class="label">
                     หน่วยงาน :
                     </span>
+
                     ${data.colC}
+
                 </div>
 
                 <button
@@ -394,6 +432,7 @@ async function loginLine(){
 
 }
 
+
 // ========================================
 // CREATE QR
 // ========================================
@@ -412,12 +451,10 @@ async function createQR(){
 
         isQRActive = true;
 
+        // clear เก่า
         clearAll();
 
-        // ========================================
-        // FETCH CREATE QR
-        // ========================================
-
+        // create qr
         const response =
         await fetch(
             `${CREATE_QR_URL}?lineUserId=${currentLineUserId}`
@@ -435,16 +472,30 @@ async function createQR(){
         }
 
         // ========================================
-        // GENERATE QR
+        // QR AREA
         // ========================================
 
+        const qrArea =
+        document.getElementById("qrcode");
+
+        // create qr box
+        const qrBox =
+        document.createElement("div");
+
+        qrBox.className =
+        "qr-box";
+
+        qrArea.appendChild(qrBox);
+
+        // generate qr
         new QRCode(
 
-            document.getElementById("qrcode"),
+            qrBox,
 
             {
 
                 text: result.qrText,
+
                 width:250,
                 height:250
 
@@ -453,12 +504,16 @@ async function createQR(){
         );
 
         // watermark
-        document.getElementById("qrcode")
-        .innerHTML += `
-            <div class="watermark">
-                LIVE
-            </div>
-        `;
+        const watermark =
+        document.createElement("div");
+
+        watermark.className =
+        "watermark";
+
+        watermark.innerText =
+        "LIVE";
+
+        qrBox.appendChild(watermark);
 
         // ========================================
         // UUID
@@ -493,12 +548,13 @@ async function createQR(){
         `;
 
         // ========================================
-        // REALTIME CLOCK
+        // CLOCK
         // ========================================
 
         updateClock();
 
-        clockTimer = setInterval(()=>{
+        clockTimer =
+        setInterval(()=>{
 
             updateClock();
 
@@ -508,13 +564,14 @@ async function createQR(){
         // COUNTDOWN
         // ========================================
 
-        let timeLeft = 10;
+        let timeLeft = 30;
 
         document.getElementById("countdownArea")
         .innerHTML =
         `หมดอายุใน ${timeLeft} วินาที`;
 
-        qrCountdown = setInterval(()=>{
+        qrCountdown =
+        setInterval(()=>{
 
             timeLeft--;
 
@@ -522,10 +579,14 @@ async function createQR(){
             .innerHTML =
             `หมดอายุใน ${timeLeft} วินาที`;
 
+            // EXPIRE
             if(timeLeft <= 0){
 
                 clearInterval(qrCountdown);
                 clearInterval(clockTimer);
+
+                qrCountdown = null;
+                clockTimer = null;
 
                 clearAll();
 
@@ -545,6 +606,7 @@ async function createQR(){
     }catch(err){
 
         console.error(err);
+
         alert(err);
 
         isQRActive = false;
@@ -552,6 +614,7 @@ async function createQR(){
     }
 
 }
+
 
 // ========================================
 // CLOCK
@@ -567,6 +630,7 @@ function updateClock(){
     now.toLocaleTimeString("th-TH");
 
 }
+
 
 // ========================================
 // CLEAR
@@ -584,6 +648,9 @@ function clearAll(){
     .innerHTML = "";
 
     document.getElementById("liveTime")
+    .innerHTML = "";
+
+    document.getElementById("countdownArea")
     .innerHTML = "";
 
 }
