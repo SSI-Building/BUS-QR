@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport"
-content="width=device-width,initial-scale=1">
+content="width=device-width,initial-scale=1.0">
 
-<title>QR Scanner System</title>
+<title>BUS QR SCANNER</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -22,7 +20,6 @@ content="width=device-width,initial-scale=1">
     --primary:#60a5fa;
     --success:#10b981;
     --danger:#ef4444;
-    --warning:#fbbf24;
 
 }
 
@@ -37,8 +34,8 @@ body{
 
 header{
 
-    text-align:center;
     padding:18px;
+    text-align:center;
     font-size:22px;
     font-weight:800;
     color:var(--primary);
@@ -53,27 +50,27 @@ header{
 
 }
 
-.card{
+#reader{
 
-    background:var(--card);
     border-radius:16px;
-    padding:16px;
-    margin-bottom:14px;
+    overflow:hidden;
 
 }
 
-input{
+.card{
 
-    width:100%;
+    margin-top:14px;
+    background:var(--card);
+    border-radius:16px;
     padding:14px;
-    border:none;
-    border-radius:12px;
-    margin-top:10px;
 
-    background:#0f172a;
-    color:white;
-    font-size:16px;
-    box-sizing:border-box;
+}
+
+.status{
+
+    text-align:center;
+    color:var(--muted);
+    font-weight:700;
 
 }
 
@@ -84,51 +81,54 @@ button{
     border-radius:12px;
     padding:14px;
     margin-top:12px;
-
     font-size:16px;
     font-weight:700;
     cursor:pointer;
 
 }
 
-#startBtn{
+.process-btn{
 
     background:#2563eb;
     color:white;
 
 }
 
-#clearBtn{
+.send-btn{
 
-    background:#ef4444;
+    background:#10b981;
     color:white;
 
 }
 
-#reader{
+.reset-btn{
 
-    overflow:hidden;
-    border-radius:16px;
-
-}
-
-.status{
-
-    margin-top:12px;
-    text-align:center;
-    color:var(--muted);
-    font-weight:700;
+    background:#334155;
+    color:white;
 
 }
 
-.scan-item{
+input{
 
-    background:#0f172a;
+    width:100%;
     padding:12px;
-    border-radius:12px;
-    margin-top:10px;
+    border:none;
+    border-radius:10px;
+    background:#0f172a;
+    color:white;
+    font-size:16px;
+    box-sizing:border-box;
 
+}
+
+.uuid-box{
+
+    margin-top:10px;
+    padding:12px;
+    background:#0f172a;
+    border-radius:10px;
     word-break:break-all;
+    font-family:monospace;
 
 }
 
@@ -145,69 +145,51 @@ button{
 }
 
 </style>
-
 </head>
 
 <body>
 
 <header>
-QR Scanner System
+BUS QR SCANNER
 </header>
 
 <div class="container">
 
+    <div id="reader"></div>
+
     <div class="card">
 
-        <div>
-            รหัสพนักงานผู้สแกน
+        <div
+            id="statusBox"
+            class="status">
+
+            ● Ready to scan
+
         </div>
 
-        <input
-            type="text"
-            id="scannerId"
-            placeholder="เช่น 00100101"
-        >
+        <div
+            id="scanCount"
+            style="
+                margin-top:10px;
+                text-align:center;
+                color:#94a3b8;
+            ">
 
-        <button id="startBtn"
-            onclick="startScanner()">
-
-            เริ่มสแกน QR
-
-        </button>
-
-        <button id="clearBtn"
-            onclick="clearList()">
-
-            ล้างรายการ
-
-        </button>
-
-    </div>
-
-    <div class="card">
-
-        <div id="reader"></div>
-
-        <div class="status"
-            id="status">
-
-            Ready
+            สแกนแล้ว 0 รายการ
 
         </div>
 
     </div>
 
-    <div class="card">
+    <button
+        class="process-btn"
+        onclick="processData()">
 
-        <div>
-            สแกนแล้ว
-            <span id="count">0</span>
-            รายการ
-        </div>
+        ประมวลผล
 
-        <div id="result"></div>
+    </button>
 
-    </div>
+    <div id="result"></div>
 
 </div>
 
@@ -217,74 +199,26 @@ QR Scanner System
 // API
 // ======================================
 
-const API_URL =
+const SAVE_API =
 "https://script.google.com/macros/s/AKfycbxXdyoQu-MUXUIQbYJHobJvrQY9NEUojJCkXDnYG-JiC34SsDwBmCbRtxZn_VwaPhVN/exec";
 
 // ======================================
-// GLOBAL
+// VARIABLES
 // ======================================
 
 let scanner;
 
-let scannedUUID = [];
+let scannedUUIDs = [];
 
 // ======================================
-// LOAD SAVED SCANNER ID
+// START
 // ======================================
 
-window.onload = ()=>{
+window.onload = async ()=>{
 
-    const saved =
-    localStorage.getItem(
-        "scannerId"
-    );
+    await startScanner();
 
-    if(saved){
-
-        document.getElementById(
-            "scannerId"
-        ).value = saved;
-
-    }
 };
-
-// ======================================
-// SAVE INPUT
-// ======================================
-
-document.addEventListener(
-    "input",
-    e=>{
-
-        if(
-            e.target.id === "scannerId"
-        ){
-
-            localStorage.setItem(
-
-                "scannerId",
-                e.target.value
-
-            );
-        }
-    }
-);
-
-// ======================================
-// STATUS
-// ======================================
-
-function setStatus(text,color="#94a3b8"){
-
-    const el =
-    document.getElementById(
-        "status"
-    );
-
-    el.innerHTML = text;
-    el.style.color = color;
-
-}
 
 // ======================================
 // START SCANNER
@@ -292,22 +226,8 @@ function setStatus(text,color="#94a3b8"){
 
 async function startScanner(){
 
-    const scannerId =
-    document.getElementById(
-        "scannerId"
-    ).value.trim();
-
-    if(scannerId===""){
-
-        alert(
-            "กรุณากรอกรหัสพนักงานผู้สแกน"
-        );
-
-        return;
-    }
-
     scanner =
-    new Html5Qrcode("reader");
+        new Html5Qrcode("reader");
 
     await scanner.start(
 
@@ -320,279 +240,110 @@ async function startScanner(){
             qrbox:250
         },
 
-        onScanSuccess
+        onScan
 
     );
 
-    setStatus(
-        "กำลังสแกน...",
-        "#10b981"
-    );
 }
 
 // ======================================
-// SCAN SUCCESS
+// SCAN
 // ======================================
 
-async function onScanSuccess(decodedText){
+async function onScan(decodedText){
 
     try{
 
-        const raw =
+        await scanner.pause();
+
+    }catch(err){}
+
+    const raw =
         decodedText.trim();
 
-        // ======================================
-        // CHECK FORMAT
-        // ======================================
+    // ======================================
+    // MATCH UUID
+    // ======================================
 
-        const match =
-        raw.match(
+    const pattern =
+/^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i;
 
-            /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i
+    const match =
+        raw.match(pattern);
 
+    // ======================================
+    // INVALID
+    // ======================================
+
+    if(!match){
+
+        setStatus(
+            "QR ไม่ถูกต้อง",
+            true
         );
 
-        if(!match){
+        setTimeout(async ()=>{
 
-            setStatus(
-                "QR ไม่ถูกต้อง",
-                "#ef4444"
-            );
+            await scanner.resume();
 
-            return;
-        }
+        },1000);
 
-        // ======================================
-        // UUID
-        // ======================================
+        return;
 
-        const uuid =
+    }
+
+    // ======================================
+    // UUID
+    // ======================================
+
+    const uuid =
         match[1].trim();
 
-        // ======================================
-        // DUPLICATE
-        // ======================================
+    // ======================================
+    // DUPLICATE
+    // ======================================
 
-        if(
-            scannedUUID.includes(uuid)
-        ){
+    if(!scannedUUIDs.includes(uuid)){
 
-            setStatus(
-                "สแกนซ้ำ",
-                "#fbbf24"
-            );
-
-            return;
-        }
-
-        scannedUUID.push(uuid);
+        scannedUUIDs.push(uuid);
 
         updateCount();
 
-        setStatus(
-            "กำลังถ่ายรูป...",
-            "#60a5fa"
-        );
-
-        // ======================================
-        // SELFIE
-        // ======================================
-
-        const selfie =
-        await captureSelfie();
-
-        // ======================================
-        // SEND
-        // ======================================
-
-        const scannerId =
-        document.getElementById(
-            "scannerId"
-        ).value
-        .trim();
-
-        const payload = {
-
-            uuid:uuid,
-            scannerId:scannerId,
-            selfie:selfie
-
-        };
-
-        const response =
-        await fetch(
-
-            API_URL,
-
-            {
-
-                method:"POST",
-
-                body:JSON.stringify(
-                    payload
-                )
-
-            }
-
-        );
-
-        const result =
-        await response.json();
-
-        // ======================================
-        // SUCCESS
-        // ======================================
-
-        if(result.success){
-
-            addResult(
-
-                uuid,
-                true
-
-            );
-
-            setStatus(
-                "บันทึกสำเร็จ",
-                "#10b981"
-            );
-
-        }else{
-
-            addResult(
-
-                uuid,
-                false
-
-            );
-
-            setStatus(
-                result.message,
-                "#ef4444"
-            );
-        }
-
-    }catch(err){
-
-        console.error(err);
-
-        setStatus(
-            err,
-            "#ef4444"
-        );
     }
-}
 
-// ======================================
-// SELFIE
-// ======================================
-
-async function captureSelfie(){
-
-    try{
-
-        const stream =
-        await navigator
-        .mediaDevices
-        .getUserMedia({
-
-            video:{
-                facingMode:"user"
-            }
-
-        });
-
-        const video =
-        document.createElement(
-            "video"
-        );
-
-        video.srcObject =
-        stream;
-
-        await video.play();
-
-        await new Promise(
-            r=>setTimeout(r,1000)
-        );
-
-        const canvas =
-        document.createElement(
-            "canvas"
-        );
-
-        canvas.width =
-        video.videoWidth;
-
-        canvas.height =
-        video.videoHeight;
-
-        const ctx =
-        canvas.getContext("2d");
-
-        ctx.drawImage(
-
-            video,
-            0,
-            0
-
-        );
-
-        stream
-        .getTracks()
-        .forEach(
-            t=>t.stop()
-        );
-
-        return canvas.toDataURL(
-
-            "image/jpeg",
-            0.35
-
-        );
-
-    }catch(err){
-
-        console.log(err);
-
-        return "";
-    }
-}
-
-// ======================================
-// RESULT
-// ======================================
-
-function addResult(uuid,success){
-
-    const box =
-    document.getElementById(
-        "result"
+    setStatus(
+        uuid,
+        false
     );
 
-    box.innerHTML = `
+    setTimeout(async ()=>{
 
-        <div class="scan-item">
+        await scanner.resume();
 
-            <div class="${
-                success
-                ? 'success'
-                : 'error'
-            }">
+    },700);
 
-                ${
-                    success
-                    ? '✔'
-                    : '✖'
-                }
+}
 
-                ${uuid}
+// ======================================
+// STATUS
+// ======================================
 
-            </div>
+function setStatus(text,isError){
 
-        </div>
+    const el =
+        document.getElementById(
+            "statusBox"
+        );
 
-    ` + box.innerHTML;
+    el.innerHTML =
+        isError
+        ? `✖ ${text}`
+        : `✔ ${text}`;
+
+    el.className =
+        "status " +
+        (isError ? "error" : "success");
+
 }
 
 // ======================================
@@ -602,24 +353,367 @@ function addResult(uuid,success){
 function updateCount(){
 
     document.getElementById(
-        "count"
-    ).innerText =
-    scannedUUID.length;
+        "scanCount"
+    ).innerHTML =
+
+        "สแกนแล้ว " +
+        scannedUUIDs.length +
+        " รายการ";
+
 }
 
 // ======================================
-// CLEAR
+// PROCESS
 // ======================================
 
-function clearList(){
+function processData(){
 
-    scannedUUID = [];
+    if(scannedUUIDs.length===0){
 
-    updateCount();
+        alert("ยังไม่มีข้อมูล");
+
+        return;
+
+    }
+
+    const savedScannerId =
+        localStorage.getItem(
+            "scannerId"
+        ) || "";
+
+    let html = `
+
+        <div class="card">
+
+            <div style="
+                margin-bottom:10px;
+                font-weight:700;
+                color:#60a5fa;
+            ">
+
+                UUID ที่สแกน
+
+            </div>
+
+    `;
+
+    scannedUUIDs.forEach(uuid=>{
+
+        html += `
+
+            <div class="uuid-box">
+                ${uuid}
+            </div>
+
+        `;
+
+    });
+
+    html += `
+
+        <div style="
+            margin-top:18px;
+            margin-bottom:8px;
+            color:#94a3b8;
+        ">
+
+            รหัสพนักงานผู้สแกน
+
+        </div>
+
+        <input
+            id="scannerId"
+            placeholder="เช่น K0123"
+            value="${savedScannerId}"
+        >
+
+        <button
+            class="send-btn"
+            onclick="sendData()">
+
+            ส่งข้อมูล
+
+        </button>
+
+        <button
+            class="reset-btn"
+            onclick="location.reload()">
+
+            เริ่มใหม่
+
+        </button>
+
+        </div>
+
+    `;
 
     document.getElementById(
         "result"
-    ).innerHTML = "";
+    ).innerHTML = html;
+
+}
+
+// ======================================
+// CAPTURE SELFIE
+// ======================================
+
+async function captureSelfie(){
+
+    try{
+
+        if(scanner){
+
+            try{
+
+                await scanner.stop();
+
+            }catch(err){}
+        }
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video:{
+                    facingMode:"user"
+                }
+
+            });
+
+        const video =
+            document.createElement(
+                "video"
+            );
+
+        video.srcObject =
+            stream;
+
+        await video.play();
+
+        await new Promise(
+            r=>setTimeout(r,1200)
+        );
+
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
+
+        canvas.width =
+            video.videoWidth;
+
+        canvas.height =
+            video.videoHeight;
+
+        const ctx =
+            canvas.getContext("2d");
+
+        ctx.drawImage(
+            video,
+            0,
+            0
+        );
+
+        stream
+            .getTracks()
+            .forEach(t=>t.stop());
+
+        return canvas.toDataURL(
+            "image/jpeg",
+            0.35
+        );
+
+    }catch(err){
+
+        console.log(err);
+
+        return "";
+
+    }
+
+}
+
+// ======================================
+// SEND
+// ======================================
+
+async function sendData(){
+
+    try{
+
+        const scannerId =
+            document.getElementById(
+                "scannerId"
+            )
+            .value
+            .trim()
+            .toUpperCase();
+
+        if(scannerId===""){
+
+            alert(
+                "กรุณากรอกรหัสพนักงาน"
+            );
+
+            return;
+
+        }
+
+        // SAVE LOCAL
+        localStorage.setItem(
+            "scannerId",
+            scannerId
+        );
+
+        // LOADING
+        document.body.innerHTML = `
+
+            <div style="
+                height:100vh;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                flex-direction:column;
+                color:white;
+                font-family:Segoe UI;
+            ">
+
+                <div style="
+                    width:70px;
+                    height:70px;
+                    border:6px solid #334155;
+                    border-top:6px solid #10b981;
+                    border-radius:50%;
+                    animation:spin 1s linear infinite;
+                "></div>
+
+                <div style="
+                    margin-top:20px;
+                    font-size:22px;
+                    font-weight:700;
+                ">
+
+                    กำลังบันทึกข้อมูล
+
+                </div>
+
+            </div>
+
+            <style>
+
+            @keyframes spin{
+
+                0%{
+                    transform:rotate(0deg);
+                }
+
+                100%{
+                    transform:rotate(360deg);
+                }
+
+            }
+
+            </style>
+
+        `;
+
+        // ======================================
+        // SELFIE
+        // ======================================
+
+        const selfie =
+            await captureSelfie();
+
+        // ======================================
+        // SEND ALL UUID
+        // ======================================
+
+        for(const uuid of scannedUUIDs){
+
+            await fetch(
+
+                SAVE_API,
+
+                {
+
+                    method:"POST",
+
+                    headers:{
+                        "Content-Type":
+                        "application/json"
+                    },
+
+                    body:JSON.stringify({
+
+                        uuid:uuid,
+                        scannerId:scannerId,
+                        selfie:selfie
+
+                    })
+
+                }
+
+            );
+
+        }
+
+        // ======================================
+        // SUCCESS
+        // ======================================
+
+        document.body.innerHTML = `
+
+            <div style="
+                height:100vh;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                flex-direction:column;
+                background:#0f172a;
+                color:white;
+                font-family:Segoe UI;
+            ">
+
+                <div style="
+                    font-size:80px;
+                    color:#10b981;
+                ">
+
+                    ✔
+
+                </div>
+
+                <div style="
+                    margin-top:20px;
+                    font-size:26px;
+                    font-weight:700;
+                ">
+
+                    บันทึกสำเร็จ
+
+                </div>
+
+                <div style="
+                    margin-top:10px;
+                    color:#94a3b8;
+                ">
+
+                    สามารถปิดหน้านี้ได้เลย
+
+                </div>
+
+            </div>
+
+        `;
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(err);
+
+        location.reload();
+
+    }
 
 }
 
