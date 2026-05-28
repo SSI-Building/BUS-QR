@@ -3,98 +3,170 @@
 
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Employee QR System</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>BUS QR System</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --line-green: #06c755;
+    --line-hover: #05b04b;
+    --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --success: #10b981;
+    --danger: #ef4444;
+}
+
 * {
     box-sizing: border-box;
     -webkit-user-select: none;
     user-select: none;
+    transition: all 0.2s ease;
 }
 
 body {
     margin: 0;
-    padding: 20px;
-    background: linear-gradient(135deg, #f0fdf4 0%, #e0e7ff 100%);
+    padding: 12px;
+    background: var(--bg-gradient);
     font-family: 'Prompt', sans-serif;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden; /* บังคับล็อกหน้าจอ ไม่ให้มีแถบเลื่อน */
 }
 
+/* ปรับขนาดการ์ดให้กระชับ ฟิตพอดีหน้าจอมือถือทุกรุ่น */
 .card {
     width: 100%;
-    max-width: 420px;
+    max-width: 360px;
     margin: auto;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 24px;
-    padding: 30px 25px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 20px 18px;
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.brand-section {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+/* ไอคอนรูปแบบใหม่: ตึก + วิศวกรรมระบบบริการ */
+.brand-logo-container {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    margin: 0 auto 8px auto;
+    box-shadow: 0 8px 16px -4px rgba(79, 70, 229, 0.3);
+}
+
+.brand-logo-subicon {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #111827;
+    color: #f59e0b;
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid white;
 }
 
 h2 {
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 25px;
-    color: #111827;
+    margin: 0;
+    color: var(--text-main);
     font-weight: 700;
-    font-size: 24px;
+    font-size: 21px;
+    letter-spacing: -0.5px;
 }
 
+.brand-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ปุ่มกดลดขนาด Padding เพื่อเซฟพื้นที่ */
 button {
     width: 100%;
     border: none;
-    border-radius: 14px;
-    padding: 16px;
-    font-size: 16px;
+    border-radius: 12px;
+    padding: 12px 15px;
+    font-size: 15px;
     font-family: 'Prompt', sans-serif;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-button:active {
-    transform: translateY(0);
+    transform: translateY(-1px);
 }
 
 .login-btn {
-    background: #06c755;
+    background: var(--line-green);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(6, 199, 85, 0.2);
 }
 
 .qr-btn {
-    margin-top: 15px;
-    background: #4f46e5;
+    margin-top: 12px;
+    background: var(--primary);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
 }
 
+/* Info Box แบบบางพิเศษ */
 .info-box {
-    margin-top: 20px;
-    background: #f8fafc;
+    margin-top: 15px;
+    background: rgba(248, 250, 252, 0.6);
     border-radius: 16px;
-    padding: 20px;
-    border: 1px solid #f1f5f9;
+    padding: 14px;
+    border: 1px solid rgba(241, 245, 249, 0.8);
+}
+
+.info-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    text-align: center;
 }
 
 .row {
-    margin-bottom: 12px;
-    font-size: 15px;
+    margin-bottom: 6px;
+    font-size: 14px;
     color: #4b5563;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .row:last-child {
@@ -102,39 +174,46 @@ button:active {
 }
 
 .label {
-    font-weight: 600;
-    color: #1f2937;
-    margin-right: 5px;
+    font-weight: 500;
+    color: var(--text-muted);
 }
 
+.value {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Feedback Msg */
 .loading {
     text-align: center;
-    margin-top: 20px;
-    color: #6b7280;
-    font-weight: 400;
-}
-
-.error {
-    color: #ef4444;
-    text-align: center;
-    margin-top: 20px;
-    background: #fef2f2;
-    padding: 12px;
-    border-radius: 10px;
+    margin-top: 15px;
+    color: var(--text-muted);
     font-size: 14px;
 }
 
-.success {
-    color: #10b981;
+.error {
+    color: var(--danger);
     text-align: center;
-    margin-top: 10px;
-    margin-bottom: 15px;
-    font-weight: 600;
-    font-size: 16px;
+    margin-top: 15px;
+    background: #fef2f2;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    border: 1px solid #fee2e2;
 }
 
+.success {
+    color: var(--success);
+    text-align: center;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* QR Code Area ปรับลงมาที่ 180px เพื่อประหยัดพื้นที่แนวตั้ง */
 #qrcode {
-    margin-top: 25px;
+    margin-top: 15px;
     display: flex;
     justify-content: center;
 }
@@ -143,65 +222,91 @@ button:active {
     position: relative;
     display: inline-block;
     background: white;
-    padding: 15px;
-    border-radius: 20px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    padding: 12px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -10px rgba(0,0,0,0.08);
+    border: 1px solid #e2e8f0;
 }
 
-.qr-box img {
-    animation: floatQR 2s ease-in-out infinite alternate;
+.qr-box canvas, .qr-box img {
+    width: 180px !important;
+    height: 180px !important;
+    animation: floatQR 3s ease-in-out infinite alternate;
 }
 
 @keyframes floatQR {
     from { transform: translateY(0px); }
-    to { transform: translateY(-6px); }
+    to { transform: translateY(-4px); }
 }
 
 .watermark {
     position: absolute;
-    top: -10px;
-    right: -10px;
-    background: #ef4444;
+    top: -6px;
+    right: -6px;
+    background: var(--danger);
     color: white;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 20px;
-    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
-    animation: pulse 1.5s infinite;
+    padding: 3px 8px;
+    border-radius: 50px;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+    animation: pulse 1.8s infinite;
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+    70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 #countdownArea {
-    margin-top: 15px;
+    margin-top: 12px;
     text-align: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #ef4444;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+#countdownArea span.time-num {
+    color: var(--danger);
+    font-weight: 700;
+    font-size: 16px;
 }
 
 #liveTime {
-    margin-top: 20px;
+    margin-top: 10px;
     text-align: center;
     font-size: 22px;
     font-weight: 700;
-    color: #4f46e5;
-    letter-spacing: 1px;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
 }
 
 .expired {
-    color: #ef4444;
-    font-weight: 700;
+    color: var(--danger);
+    font-weight: 600;
     text-align: center;
-    margin-top: 20px;
+    margin-top: 15px;
     background: #fef2f2;
-    padding: 15px;
+    padding: 12px;
     border-radius: 12px;
+    border: 1px solid #fee2e2;
+    font-size: 14px;
+}
+
+.status-success-box {
+    background: #ecfdf5; 
+    padding: 14px; 
+    border-radius: 14px; 
+    color: var(--success); 
+    margin-top: 15px;
+    font-weight: 600;
+    border: 1px solid #d1fae5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 14px;
 }
 </style>
 </head>
@@ -209,10 +314,19 @@ button:active {
 <body>
 
 <div class="card">
-    <h2>Employee QR System</h2>
+    <div class="brand-section">
+        <div class="brand-logo-container">
+            <i class="fa-solid fa-city"></i>
+            <div class="brand-logo-subicon">
+                <i class="fa-solid fa-gears"></i>
+            </div>
+        </div>
+        <h2>BUS QR System</h2>
+        <div class="brand-subtitle">Building & Utility Service System</div>
+    </div>
 
     <button class="login-btn" onclick="loginLine()">
-        Login with LINE
+        <i class="fa-brands fa-line" style="font-size: 18px;"></i> Login with LINE
     </button>
 
     <div id="result"></div>
@@ -224,7 +338,6 @@ button:active {
 // ========================================
 const LIFF_ID = "2007956727-fT3yQmc0";
 
-// ใช้ URL เดียวกันตามที่คุณตั้งค่าไว้
 const FIND_USER_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 const CREATE_QR_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 
@@ -236,12 +349,7 @@ let qrCountdown = null;
 let clockTimer = null;
 let isQRActive = false;
 
-// ========================================
-// DISABLE RIGHT CLICK
-// ========================================
-document.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-});
+document.addEventListener("contextmenu", (e) => e.preventDefault());
 
 // ========================================
 // LOGIN
@@ -250,7 +358,7 @@ async function loginLine() {
     try {
         document.getElementById("result").innerHTML = `
             <div class="loading">
-                ⏳ กำลังโหลดข้อมูล...
+                <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...
             </div>
         `;
 
@@ -272,7 +380,7 @@ async function loginLine() {
         if (!result.success) {
             document.getElementById("result").innerHTML = `
                 <div class="error">
-                    ${result.message}
+                    <i class="fa-solid fa-circle-exclamation"></i> ${result.message}
                 </div>
             `;
             return;
@@ -282,21 +390,22 @@ async function loginLine() {
 
         document.getElementById("result").innerHTML = `
             <div class="success">
-                ✔ เข้าสู่ระบบสำเร็จ
+                <i class="fa-solid fa-circle-check"></i> เข้าสู่ระบบสำเร็จ
             </div>
 
             <div class="info-box">
+                <div class="info-title">ข้อมูลผู้ใช้งาน</div>
                 <div class="row">
-                    <span class="label">รหัสพนักงาน :</span>
-                    <span style="color: #4f46e5; font-weight: 700;">${data.colA}</span>
+                    <span class="label">รหัสพนักงาน</span>
+                    <span class="value" style="color: var(--primary);">${data.colA}</span>
                 </div>
                 <div class="row">
-                    <span class="label">ชื่อ-สกุล :</span>
-                    ${data.colB}
+                    <span class="label">ชื่อ-สกุล</span>
+                    <span class="value">${data.colB}</span>
                 </div>
                 
                 <button class="qr-btn" onclick="createQR()">
-                    สร้าง QR Code
+                    <i class="fa-solid fa-qrcode"></i> สร้าง QR Code
                 </button>
 
                 <div id="qrcode"></div>
@@ -308,13 +417,13 @@ async function loginLine() {
     } catch (err) {
         console.error(err);
         document.getElementById("result").innerHTML = `
-            <div class="error">เกิดข้อผิดพลาด: ${err}</div>
+            <div class="error"><i class="fa-solid fa-circle-exclamation"></i> เกิดข้อผิดพลาด: ${err}</div>
         `;
     }
 }
 
 // ========================================
-// CREATE QR (ปรับปรุงระบบเช็ก Real-time)
+// CREATE QR
 // ========================================
 async function createQR() {
     try {
@@ -337,84 +446,72 @@ async function createQR() {
             return;
         }
         
-        const currentUUID = result.uuid; // เก็บรหัส UUID ไว้ค้นหา
+        const currentUUID = result.uuid;
 
-        // QR AREA
         const qrArea = document.getElementById("qrcode");
         const qrBox = document.createElement("div");
         qrBox.className = "qr-box";
         qrArea.appendChild(qrBox);
 
-        // GENERATE QR
+        // GENERATE QR (ปรับขนาดเป็น 180 พอดีเป๊ะกับดีไซน์กะทัดรัด)
         new QRCode(qrBox, {
             text: result.qrText,
-            width: 220,
-            height: 220,
+            width: 180,
+            height: 180,
             colorDark : "#111827",
             colorLight : "#ffffff",
         });
 
-        // WATERMARK BADGE
         const watermark = document.createElement("div");
         watermark.className = "watermark";
         watermark.innerText = "LIVE";
         qrBox.appendChild(watermark);
 
-        // CLOCK
         updateClock();
         clockTimer = setInterval(() => {
             updateClock();
         }, 1000);
 
-        // COUNTDOWN & REAL-TIME CHECK
         let timeLeft = 30;
         let isSaved = false; 
         let checkStatusTimer = null; 
 
-        document.getElementById("countdownArea").innerHTML = `หมดอายุใน ${timeLeft} วินาที`;
+        document.getElementById("countdownArea").innerHTML = `หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
 
         qrCountdown = setInterval(async () => {
             timeLeft--;
             
             if (!isSaved && timeLeft >= 0) {
-                document.getElementById("countdownArea").innerHTML = `หมดอายุใน ${timeLeft} วินาที`;
+                document.getElementById("countdownArea").innerHTML = `หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
             }
 
-            // 🌟 เงื่อนไขใหม่: เริ่มเช็กที่วินาทีที่ 5 เป็นต้นไป (คือเวลาเหลือน้อยกว่าหรือเท่ากับ 25 วินาที)
             if (timeLeft <= 25 && timeLeft > 0 && !checkStatusTimer && !isSaved) {
-                
-                // ตั้งลูปให้ส่งไปเช็กที่ Google Sheet ทุกๆ 2 วินาที
                 checkStatusTimer = setInterval(async () => {
                     if (timeLeft > 0 && !isSaved) {
                         const statusResult = await checkQRStatus(currentUUID);
                         
-                        // ถ้าแอปหลังบ้านสแกนและบันทึกแล้ว (saved == true)
                         if (statusResult && statusResult.saved) {
                             isSaved = true;
                             
-                            // เคลียร์ค่าตัวจับเวลาทั้งหมดทันที
                             clearInterval(qrCountdown);
                             clearInterval(clockTimer);
                             clearInterval(checkStatusTimer);
                             qrCountdown = null;
                             clockTimer = null;
                             
-                            // ลบรูปภาพ QR Code บนหน้าจอออกเพื่อความปลอดภัย
                             clearAll(); 
                             
-                            // แสดงผลลัพธ์ว่าบันทึกสำเร็จทันที ไม่ต้องรอให้ครบ 30 วิ
                             document.getElementById("countdownArea").innerHTML = `
-                                <div class="success" style="background: #ecfdf5; padding: 15px; border-radius: 12px; color: #10b981; margin-top: 20px;">
-                                    ✅ บันทึกข้อมูลเรียบร้อยแล้ว
+                                <div class="status-success-box">
+                                    <i class="fa-solid fa-square-check" style="font-size: 18px;"></i> บันทึกข้อมูลเรียบร้อยแล้ว
                                 </div>
                             `;
                             isQRActive = false;
                         }
                     }
-                }, 2000); // 2000ms = 2 วินาที
+                }, 2000);
             }
 
-            // EXPIRE (กรณีครบ 30 วินาทีแล้วยังไม่ถูกสแกน)
             if (timeLeft <= 0) {
                 clearInterval(qrCountdown);
                 clearInterval(clockTimer);
@@ -427,7 +524,7 @@ async function createQR() {
                     clearAll();
                     document.getElementById("countdownArea").innerHTML = `
                         <div class="expired">
-                            ✖ หมดเวลา
+                            <i class="fa-solid fa-hourglass-end"></i> QR Code หมดอายุแล้ว
                         </div>
                     `;
                     isQRActive = false;
@@ -442,9 +539,6 @@ async function createQR() {
     }
 }
 
-// ========================================
-// CHECK STATUS (ฟังก์ชันสำหรับคุยกับ Google Apps Script เบื้องหลัง)
-// ========================================
 async function checkQRStatus(uuid) {
     try {
         const response = await fetch(`${CREATE_QR_URL}?action=checkStatus&uuid=${uuid}`);
@@ -456,17 +550,11 @@ async function checkQRStatus(uuid) {
     }
 }
 
-// ========================================
-// CLOCK
-// ========================================
 function updateClock() {
     const now = new Date();
     document.getElementById("liveTime").innerHTML = now.toLocaleTimeString("th-TH");
 }
 
-// ========================================
-// CLEAR
-// ========================================
 function clearAll() {
     document.getElementById("qrcode").innerHTML = "";
     document.getElementById("liveTime").innerHTML = "";
