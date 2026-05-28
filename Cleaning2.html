@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BUS QR System</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --line-green: #06c755;
+    --line-hover: #05b04b;
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --success: #10b981;
+    --danger: #ef4444;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: all 0.25s ease;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg-gradient);
+    font-family: 'Prompt', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Glassmorphism Card Effect */
+.card {
+    width: 100%;
+    max-width: 400px;
+    margin: auto;
+    background: var(--card-bg);
+    border-radius: 28px;
+    padding: 35px 28px;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0,0,0,0.02);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.brand-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Logo จิตนาการแบบโมเดิร์น */
+.brand-logo {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--primary) 0%, #818cf8 100%);
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    margin: 0 auto 15px auto;
+    box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
+}
+
+h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Modern Controls */
+button {
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    padding: 16px 20px;
+    font-size: 16px;
+    font-family: 'Prompt', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+.login-btn {
+    background: var(--line-green);
+    color: #fff;
+}
+.login-btn:hover { background: var(--line-hover); }
+
+.qr-btn {
+    margin-top: 20px;
+    background: var(--primary);
+    color: #fff;
+}
+.qr-btn:hover { background: var(--primary-hover); }
+
+/* Info Box */
+.info-box {
+    margin-top: 25px;
+    background: rgba(248, 250, 252, 0.6);
+    border-radius: 20px;
+    padding: 22px;
+    border: 1px solid rgba(241, 245, 249, 0.8);
+}
+
+.info-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+}
+
+.row {
+    margin-bottom: 12px;
+    font-size: 15px;
+    color: #4b5563;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.row:last-child {
+    margin-bottom: 0;
+}
+
+.label {
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.value {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Status & Feedback CSS */
+.loading {
+    text-align: center;
+    margin-top: 25px;
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+.error {
+    color: var(--danger);
+    text-align: center;
+    margin-top: 25px;
+    background: #fef2f2;
+    padding: 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid #fee2e2;
+}
+
+.success {
+    color: var(--success);
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* QR Code Beautiful Container */
+#qrcode {
+    margin-top: 28px;
+    display: flex;
+    justify-content: center;
+}
+
+.qr-box {
+    position: relative;
+    display: inline-block;
+    background: white;
+    padding: 20px;
+    border-radius: 24px;
+    box-shadow: 0 15px 35px -10px rgba(0,0,0,0.08);
+    border: 1px solid #f1f5f9;
+}
+
+.qr-box canvas, .qr-box img {
+    animation: floatQR 3s ease-in-out infinite alternate;
+}
+
+@keyframes floatQR {
+    from { transform: translateY(0px); }
+    to { transform: translateY(-8px); }
+}
+
+.watermark {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--danger);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 50px;
+    box-shadow: 0 6px 14px rgba(239, 68, 68, 0.35);
+    animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+    70% { transform: scale(1.06); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+#countdownArea {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+#countdownArea span.time-num {
+    color: var(--danger);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+#liveTime {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 1px;
+    font-variant-numeric: tabular-nums;
+}
+
+.expired {
+    color: var(--danger);
+    font-weight: 600;
+    text-align: center;
+    margin-top: 20px;
+    background: #fef2f2;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid #fee2e2;
+}
+
+.status-success-box {
+    background: #ecfdf5; 
+    padding: 18px; 
+    border-radius: 18px; 
+    color: var(--success); 
+    margin-top: 20px;
+    font-weight: 600;
+    border: 1px solid #d1fae5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.1);
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+    <div class="brand-section">
+        <div class="brand-logo">
+            <i class="fa-solid fa-bus"></i>
+        </div>
+        <h2>BUS QR System</h2>
+        <div class="brand-subtitle">ระบบเช็คอินรถโดยสารพนักงาน</div>
+    </div>
+
+    <button class="login-btn" onclick="loginLine()">
+        <i class="fa-brands fa-line" style="font-size: 20px;"></i> Login with LINE
+    </button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+// ========================================
+// CONFIG
+// ========================================
+const LIFF_ID = "2007956727-fT3yQmc0";
+
+const FIND_USER_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
+const CREATE_QR_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
+
+// ========================================
+// GLOBAL
+// ========================================
+let currentLineUserId = "";
+let qrCountdown = null;
+let clockTimer = null;
+let isQRActive = false;
+
+// ========================================
+// DISABLE RIGHT CLICK
+// ========================================
+document.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+});
+
+// ========================================
+// LOGIN
+// ========================================
+async function loginLine() {
+    try {
+        document.getElementById("result").innerHTML = `
+            <div class="loading">
+                <i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"></i> กำลังโหลดข้อมูล...
+            </div>
+        `;
+
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+            liff.login();
+            return;
+        }
+
+        const profile = await liff.getProfile();
+        currentLineUserId = profile.userId;
+
+        const response = await fetch(
+            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}`
+        );
+        const result = await response.json();
+
+        if (!result.success) {
+            document.getElementById("result").innerHTML = `
+                <div class="error">
+                    <i class="fa-solid fa-circle-exclamation"></i> ${result.message}
+                </div>
+            `;
+            return;
+        }
+
+        const data = result.data;
+
+        document.getElementById("result").innerHTML = `
+            <div class="success">
+                <i class="fa-solid fa-circle-check"></i> เข้าสู่ระบบสำเร็จ
+            </div>
+
+            <div class="info-box">
+                <div class="info-title">ข้อมูลพนักงาน</div>
+                <div class="row">
+                    <span class="label">รหัสพนักงาน</span>
+                    <span class="value" style="color: var(--primary);">${data.colA}</span>
+                </div>
+                <div class="row">
+                    <span class="label">ชื่อ-สกุล</span>
+                    <span class="value">${data.colB}</span>
+                </div>
+                
+                <button class="qr-btn" onclick="createQR()">
+                    <i class="fa-solid fa-qrcode"></i> สร้าง QR Code
+                </button>
+
+                <div id="qrcode"></div>
+                <div id="liveTime"></div>
+                <div id="countdownArea"></div>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("result").innerHTML = `
+            <div class="error"><i class="fa-solid fa-circle-exclamation"></i> เกิดข้อผิดพลาด: ${err}</div>
+        `;
+    }
+}
+
+// ========================================
+// CREATE QR
+// ========================================
+async function createQR() {
+    try {
+        if (isQRActive) {
+            alert("QR Code กำลังทำงานอยู่");
+            return;
+        }
+
+        isQRActive = true;
+        clearAll();
+
+        const response = await fetch(
+            `${CREATE_QR_URL}?action=createQR&lineUserId=${currentLineUserId}`
+        );
+        const result = await response.json();
+
+        if (!result.success) {
+            alert(result.message);
+            isQRActive = false;
+            return;
+        }
+        
+        const currentUUID = result.uuid;
+
+        // QR AREA
+        const qrArea = document.getElementById("qrcode");
+        const qrBox = document.createElement("div");
+        qrBox.className = "qr-box";
+        qrArea.appendChild(qrBox);
+
+        // GENERATE QR
+        new QRCode(qrBox, {
+            text: result.qrText,
+            width: 220,
+            height: 220,
+            colorDark : "#111827",
+            colorLight : "#ffffff",
+        });
+
+        // WATERMARK BADGE
+        const watermark = document.createElement("div");
+        watermark.className = "watermark";
+        watermark.innerText = "LIVE";
+        qrBox.appendChild(watermark);
+
+        // CLOCK
+        updateClock();
+        clockTimer = setInterval(() => {
+            updateClock();
+        }, 1000);
+
+        // COUNTDOWN & REAL-TIME CHECK
+        let timeLeft = 30;
+        let isSaved = false; 
+        let checkStatusTimer = null; 
+
+        document.getElementById("countdownArea").innerHTML = `QR Code หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
+
+        qrCountdown = setInterval(async () => {
+            timeLeft--;
+            
+            if (!isSaved && timeLeft >= 0) {
+                document.getElementById("countdownArea").innerHTML = `QR Code หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
+            }
+
+            // เริ่มเช็กที่วินาทีที่ 5 เป็นต้นไป (คือเวลาเหลือ <= 25 วินาที)
+            if (timeLeft <= 25 && timeLeft > 0 && !checkStatusTimer && !isSaved) {
+                
+                checkStatusTimer = setInterval(async () => {
+                    if (timeLeft > 0 && !isSaved) {
+                        const statusResult = await checkQRStatus(currentUUID);
+                        
+                        if (statusResult && statusResult.saved) {
+                            isSaved = true;
+                            
+                            clearInterval(qrCountdown);
+                            clearInterval(clockTimer);
+                            clearInterval(checkStatusTimer);
+                            qrCountdown = null;
+                            clockTimer = null;
+                            
+                            clearAll(); 
+                            
+                            document.getElementById("countdownArea").innerHTML = `
+                                <div class="status-success-box">
+                                    <i class="fa-solid fa-square-check" style="font-size: 20px;"></i> บันทึกข้อมูลเรียบร้อยแล้ว
+                                </div>
+                            `;
+                            isQRActive = false;
+                        }
+                    }
+                }, 2000);
+            }
+
+            // EXPIRE
+            if (timeLeft <= 0) {
+                clearInterval(qrCountdown);
+                clearInterval(clockTimer);
+                if (checkStatusTimer) clearInterval(checkStatusTimer);
+                
+                qrCountdown = null;
+                clockTimer = null;
+                
+                if (!isSaved) {
+                    clearAll();
+                    document.getElementById("countdownArea").innerHTML = `
+                        <div class="expired">
+                            <i class="fa-solid fa-hourglass-end"></i> QR Code หมดเวลาใช้งานแล้ว
+                        </div>
+                    `;
+                    isQRActive = false;
+                }
+            }
+        }, 1000);
+
+    } catch (err) {
+        console.error(err);
+        alert(err);
+        isQRActive = false;
+    }
+}
+
+// ========================================
+// CHECK STATUS
+// ========================================
+async function checkQRStatus(uuid) {
+    try {
+        const response = await fetch(`${CREATE_QR_URL}?action=checkStatus&uuid=${uuid}`);
+        const result = await response.json();
+        return result; 
+    } catch (err) {
+        console.error("Error checking status:", err);
+        return { success: false, saved: false };
+    }
+}
+
+// ========================================
+// CLOCK
+// ========================================
+function updateClock() {
+    const now = new Date();
+    document.getElementById("liveTime").innerHTML = now.toLocaleTimeString("th-TH");
+}
+
+// ========================================
+// CLEAR
+// ========================================
+function clearAll() {
+    document.getElementById("qrcode").innerHTML = "";
+    document.getElementById("liveTime").innerHTML = "";
+    document.getElementById("countdownArea").innerHTML = "";
+}
+</script>
+
+</body>
+</html>
