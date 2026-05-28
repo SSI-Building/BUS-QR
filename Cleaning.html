@@ -222,16 +222,15 @@ button:active {
 // ========================================
 // CONFIG
 // ========================================
-
 const LIFF_ID = "2007956727-fT3yQmc0";
 
+// ใช้ URL เดียวกันตามที่คุณตั้งค่าไว้
 const FIND_USER_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 const CREATE_QR_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
 
 // ========================================
 // GLOBAL
 // ========================================
-
 let currentLineUserId = "";
 let qrCountdown = null;
 let clockTimer = null;
@@ -315,7 +314,7 @@ async function loginLine() {
 }
 
 // ========================================
-// CREATE QR
+// CREATE QR (ปรับปรุงระบบเช็ก Real-time)
 // ========================================
 async function createQR() {
     try {
@@ -338,7 +337,7 @@ async function createQR() {
             return;
         }
         
-        const currentUUID = result.uuid; // เก็บค่า UUID ไว้สำหรับเช็กสถานะ
+        const currentUUID = result.uuid; // เก็บรหัส UUID ไว้ค้นหา
 
         // QR AREA
         const qrArea = document.getElementById("qrcode");
@@ -367,24 +366,72 @@ async function createQR() {
             updateClock();
         }, 1000);
 
-        // COUNTDOWN
+        // COUNTDOWN & REAL-TIME CHECK
         let timeLeft = 30;
+        let isSaved = false; 
+        let checkStatusTimer = null; 
+
         document.getElementById("countdownArea").innerHTML = `หมดอายุใน ${timeLeft} วินาที`;
 
-        qrCountdown = setInterval(() => {
+        qrCountdown = setInterval(async () => {
             timeLeft--;
-            document.getElementById("countdownArea").innerHTML = `หมดอายุใน ${timeLeft} วินาที`;
+            
+            if (!isSaved && timeLeft >= 0) {
+                document.getElementById("countdownArea").innerHTML = `หมดอายุใน ${timeLeft} วินาที`;
+            }
 
-            // EXPIRE
+            // 🌟 เงื่อนไขใหม่: เริ่มเช็กที่วินาทีที่ 5 เป็นต้นไป (คือเวลาเหลือน้อยกว่าหรือเท่ากับ 25 วินาที)
+            if (timeLeft <= 25 && timeLeft > 0 && !checkStatusTimer && !isSaved) {
+                
+                // ตั้งลูปให้ส่งไปเช็กที่ Google Sheet ทุกๆ 2 วินาที
+                checkStatusTimer = setInterval(async () => {
+                    if (timeLeft > 0 && !isSaved) {
+                        const statusResult = await checkQRStatus(currentUUID);
+                        
+                        // ถ้าแอปหลังบ้านสแกนและบันทึกแล้ว (saved == true)
+                        if (statusResult && statusResult.saved) {
+                            isSaved = true;
+                            
+                            // เคลียร์ค่าตัวจับเวลาทั้งหมดทันที
+                            clearInterval(qrCountdown);
+                            clearInterval(clockTimer);
+                            clearInterval(checkStatusTimer);
+                            qrCountdown = null;
+                            clockTimer = null;
+                            
+                            // ลบรูปภาพ QR Code บนหน้าจอออกเพื่อความปลอดภัย
+                            clearAll(); 
+                            
+                            // แสดงผลลัพธ์ว่าบันทึกสำเร็จทันที ไม่ต้องรอให้ครบ 30 วิ
+                            document.getElementById("countdownArea").innerHTML = `
+                                <div class="success" style="background: #ecfdf5; padding: 15px; border-radius: 12px; color: #10b981; margin-top: 20px;">
+                                    ✅ บันทึกข้อมูลเรียบร้อยแล้ว
+                                </div>
+                            `;
+                            isQRActive = false;
+                        }
+                    }
+                }, 2000); // 2000ms = 2 วินาที
+            }
+
+            // EXPIRE (กรณีครบ 30 วินาทีแล้วยังไม่ถูกสแกน)
             if (timeLeft <= 0) {
                 clearInterval(qrCountdown);
                 clearInterval(clockTimer);
+                if (checkStatusTimer) clearInterval(checkStatusTimer);
+                
                 qrCountdown = null;
                 clockTimer = null;
-                clearAll();
-
-                // เรียกฟังก์ชันตรวจสอบสถานะ
-                checkQRStatus(currentUUID);
+                
+                if (!isSaved) {
+                    clearAll();
+                    document.getElementById("countdownArea").innerHTML = `
+                        <div class="expired">
+                            ✖ หมดเวลา
+                        </div>
+                    `;
+                    isQRActive = false;
+                }
             }
         }, 1000);
 
@@ -396,36 +443,17 @@ async function createQR() {
 }
 
 // ========================================
-// CHECK STATUS (ฟังก์ชันใหม่)
+// CHECK STATUS (ฟังก์ชันสำหรับคุยกับ Google Apps Script เบื้องหลัง)
 // ========================================
 async function checkQRStatus(uuid) {
-    document.getElementById("countdownArea").innerHTML = "กำลังตรวจสอบสถานะ...";
     try {
         const response = await fetch(`${CREATE_QR_URL}?action=checkStatus&uuid=${uuid}`);
         const result = await response.json();
-
-        if (result.success && result.saved) {
-            // ถ้าบันทึกข้อมูลแล้ว
-            document.getElementById("countdownArea").innerHTML = `
-                <div class="success" style="background: #ecfdf5; padding: 15px; border-radius: 12px; color: #10b981;">
-                    ✅ บันทึกข้อมูลแล้ว
-                </div>
-            `;
-        } else {
-            // ถ้าหมดเวลาและยังไม่ได้บันทึก
-            document.getElementById("countdownArea").innerHTML = `
-                <div class="expired">
-                    ✖ หมดเวลา
-                </div>
-            `;
-        }
+        return result; 
     } catch (err) {
-        console.error(err);
-        document.getElementById("countdownArea").innerHTML = `
-            <div class="expired">✖ หมดเวลา (ตรวจสอบสถานะไม่ได้)</div>
-        `;
+        console.error("Error checking status:", err);
+        return { success: false, saved: false };
     }
-    isQRActive = false;
 }
 
 // ========================================
@@ -444,7 +472,6 @@ function clearAll() {
     document.getElementById("liveTime").innerHTML = "";
     document.getElementById("countdownArea").innerHTML = "";
 }
-
 </script>
 
 </body>
