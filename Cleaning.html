@@ -42,10 +42,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden; /* บังคับล็อกหน้าจอ ไม่ให้มีแถบเลื่อน */
+    overflow: hidden;
 }
 
-/* ปรับขนาดการ์ดให้กระชับ ฟิตพอดีหน้าจอมือถือทุกรุ่น */
 .card {
     width: 100%;
     max-width: 360px;
@@ -64,7 +63,6 @@ body {
     margin-bottom: 15px;
 }
 
-/* ไอคอนรูปแบบใหม่: ตึก + วิศวกรรมระบบบริการ */
 .brand-logo-container {
     position: relative;
     width: 50px;
@@ -110,7 +108,6 @@ h2 {
     margin-top: 2px;
 }
 
-/* ปุ่มกดลดขนาด Padding เพื่อเซฟพื้นที่ */
 button {
     width: 100%;
     border: none;
@@ -130,6 +127,12 @@ button:hover {
     transform: translateY(-1px);
 }
 
+button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .login-btn {
     background: var(--line-green);
     color: #fff;
@@ -141,7 +144,6 @@ button:hover {
     color: #fff;
 }
 
-/* Info Box แบบบางพิเศษ */
 .info-box {
     margin-top: 15px;
     background: rgba(248, 250, 252, 0.6);
@@ -183,7 +185,6 @@ button:hover {
     color: var(--text-main);
 }
 
-/* Feedback Msg */
 .loading {
     text-align: center;
     margin-top: 15px;
@@ -211,7 +212,6 @@ button:hover {
     font-size: 14px;
 }
 
-/* QR Code Area ปรับลงมาที่ 180px เพื่อประหยัดพื้นที่แนวตั้ง */
 #qrcode {
     margin-top: 15px;
     display: flex;
@@ -308,6 +308,53 @@ button:hover {
     gap: 6px;
     font-size: 14px;
 }
+
+/* เพิ่มเติม: สำหรับ Input เหตุผลและปุ่ม */
+.reason-input {
+    width: 100%;
+    padding: 12px 14px;
+    margin-top: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    outline: none;
+    background: white;
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+.reason-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.btn-group-row {
+    display: flex;
+    gap: 10px;
+}
+
+.save-btn {
+    background: var(--primary);
+    color: white;
+    display: none; /* ซ่อนไว้ค่าเริ่มต้น */
+}
+
+.close-btn {
+    background: #e2e8f0;
+    color: var(--text-main);
+}
+.close-btn:hover {
+    background: #cbd5e1;
+}
+
 </style>
 </head>
 
@@ -453,7 +500,6 @@ async function createQR() {
         qrBox.className = "qr-box";
         qrArea.appendChild(qrBox);
 
-        // GENERATE QR (ปรับขนาดเป็น 180 พอดีเป๊ะกับดีไซน์กะทัดรัด)
         new QRCode(qrBox, {
             text: result.qrText,
             width: 180,
@@ -501,9 +547,19 @@ async function createQR() {
                             
                             clearAll(); 
                             
+                            // แสดงกล่องสำเร็จและเพิ่ม Text Input ทันที
                             document.getElementById("countdownArea").innerHTML = `
                                 <div class="status-success-box">
                                     <i class="fa-solid fa-square-check" style="font-size: 18px;"></i> บันทึกข้อมูลเรียบร้อยแล้ว
+                                </div>
+                                <input type="text" id="reasonInput" class="reason-input" placeholder="ระบุเหตุผล หรือรายละเอียดเพิ่มเติม..." oninput="toggleSaveButton()">
+                                <div class="btn-group">
+                                    <button id="saveReasonBtn" class="save-btn" onclick="submitReason('${currentUUID}')">
+                                        <i class="fa-solid fa-floppy-disk"></i> บันทึกเหตุผล
+                                    </button>
+                                    <button class="close-btn" onclick="closeWebApp()">
+                                        <i class="fa-solid fa-power-off"></i> ปิดหน้าเว็บ
+                                    </button>
                                 </div>
                             `;
                             isQRActive = false;
@@ -536,6 +592,79 @@ async function createQR() {
         console.error(err);
         alert(err);
         isQRActive = false;
+    }
+}
+
+// ========================================
+// TEXT INPUT & SAVE REASON
+// ========================================
+
+// ซ่อน-แสดงปุ่มบันทึก
+function toggleSaveButton() {
+    const inputVal = document.getElementById("reasonInput").value.trim();
+    const saveBtn = document.getElementById("saveReasonBtn");
+    if (inputVal.length > 0) {
+        saveBtn.style.display = "flex";
+    } else {
+        saveBtn.style.display = "none";
+    }
+}
+
+// ส่งข้อความไปบันทึก
+async function submitReason(uuid) {
+    const reason = document.getElementById("reasonInput").value.trim();
+    if (!reason) return;
+
+    const saveBtn = document.getElementById("saveReasonBtn");
+    const inputField = document.getElementById("reasonInput");
+
+    saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...`;
+    saveBtn.disabled = true;
+    inputField.disabled = true;
+
+    try {
+        const response = await fetch(CREATE_QR_URL, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "saveReason",
+                uuid: uuid,
+                reason: reason
+            }),
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8",
+            }
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            document.getElementById("countdownArea").innerHTML = `
+                <div class="status-success-box" style="margin-bottom: 12px;">
+                    <i class="fa-solid fa-check-double" style="font-size: 18px;"></i> บันทึกเหตุผลสำเร็จ
+                </div>
+                <button class="close-btn" onclick="closeWebApp()">
+                    <i class="fa-solid fa-power-off"></i> ปิดหน้าเว็บ
+                </button>
+            `;
+        } else {
+            alert("เกิดข้อผิดพลาด: " + result.message);
+            saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> บันทึกเหตุผล`;
+            saveBtn.disabled = false;
+            inputField.disabled = false;
+        }
+    } catch (err) {
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+        saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> บันทึกเหตุผล`;
+        saveBtn.disabled = false;
+        inputField.disabled = false;
+    }
+}
+
+// ปิดแอป LIFF
+function closeWebApp() {
+    if (liff.isInClient()) {
+        liff.closeWindow();
+    } else {
+        alert("กรุณากดปุ่มปิด (X) ที่มุมจอแทนครับ");
     }
 }
 
