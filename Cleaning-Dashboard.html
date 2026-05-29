@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>BUS QR - Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --bg-color: #f1f5f9;
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --glass-blur: blur(20px);
+    --glass-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --ot-color: #f97316;
+    --ot-badge-bg: #fff7ed;
+}
+
+* { box-sizing: border-box; font-family: 'Prompt', sans-serif; }
+
+body {
+    margin: 0;
+    padding: 20px;
+    background-color: var(--bg-color);
+    /* เพิ่มพื้นหลังกราฟิกโมเดิร์น */
+    background-image: 
+        radial-gradient(at 0% 0%, hsla(242, 78%, 58%, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, hsla(242, 78%, 58%, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, hsla(242, 78%, 58%, 0.1) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, hsla(242, 78%, 58%, 0.05) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, hsla(17, 94%, 53%, 0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+    color: var(--text-main);
+    min-height: 100vh;
+}
+
+.dashboard-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    /* สไตล์ Glassmorphism */
+    background: var(--card-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: var(--glass-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+h2 { margin: 0; color: var(--primary); display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: -0.5px;}
+
+/* ส่วนควบคุมตัวกรองวันที่แบบโมเดิร์น */
+.filter-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+
+.filter-section label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.filter-section input[type="date"] {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    outline: none;
+    color: var(--text-main);
+    background-color: #fff;
+}
+
+.filter-section input[type="date"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.all-btn {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: 0.2s;
+}
+.all-btn:hover { background: #e2e8f0; }
+
+.refresh-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: 0.2s;
+    height: 42px;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+}
+
+.refresh-btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+
+/* Table Styles แบบโมเดิร์น */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.03);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+thead { background: rgba(241, 245, 249, 0.7); }
+
+th, td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+th { font-weight: 600; color: #475569; }
+
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+
+/* OT Badge */
+.ot-badge {
+    color: var(--ot-color);
+    font-weight: 700;
+    margin-left: 2px;
+}
+
+/* ปรับแต่งส่วนแสดงเวลาและรูปภาพคนสแกนให้อยู่แถวเดียวกัน */
+.scan-time-cell {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+}
+
+.time-text {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 16px;
+    letter-spacing: -0.2px;
+}
+
+.scanner-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: #f1f5f9;
+    padding: 4px 10px;
+    border-radius: 8px;
+    width: fit-content;
+}
+
+.scanner-badge img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    cursor: pointer;
+    border: 1.5px solid #cbd5e1;
+    transition: transform 0.2s;
+}
+
+.scanner-badge img:hover {
+    transform: scale(1.2);
+    border-color: var(--primary);
+    box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
+}
+
+.reason-text {
+    font-size: 13px;
+    color: #4b5563;
+    white-space: pre-wrap;
+}
+
+.loading-state {
+    text-align: center;
+    padding: 50px;
+    color: var(--text-muted);
+}
+</style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h2><i class="fa-solid fa-clipboard-list"></i> Report Dashboard</h2>
+        
+        <div class="header-controls">
+            <div class="filter-section">
+                <label><i class="fa-solid fa-filter"></i> วันที่:</label>
+                <input type="date" id="dateFilter" onchange="applyFilter()">
+                <button class="all-btn" onclick="clearDateFilter()">ดูทั้งหมด</button>
+            </div>
+            
+            <button class="refresh-btn" onclick="loadData()">
+                <i class="fa-solid fa-rotate-right"></i> ดึงข้อมูลใหม่
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>รหัส พนง.</th>
+                    <th>ชื่อ-สกุล</th>
+                    <th>วันที่</th>
+                    <th>เวลาเข้า</th>
+                    <th>เวลาออก</th>
+                    <th>เหตุผล / หมายเหตุ</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="6">
+                        <div class="loading-state">
+                            <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูลและประมวลผล...
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
+
+// ตัวแปรเก็บข้อมูลดิบทั้งหมดเพื่อใช้คัดกรองบนหน้าเว็บ
+let cachedRawData = [];
+
+async function loadData() {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = `<tr><td colspan="6"><div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...</div></td></tr>`;
+
+    try {
+        const response = await fetch(`${SCRIPT_URL}?action=getDashboardData`);
+        const result = await response.json();
+
+        if (result.success) {
+            cachedRawData = result.data; // บันทึกข้อมูลลง Cache
+            applyFilter(); // เรียกเปิดฟังก์ชันกรองข้อมูลแสดงผล
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">เกิดข้อผิดพลาด: ${result.message || 'ไม่สามารถโหลดข้อมูลได้'}</td></tr>`;
+        }
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว</td></tr>`;
+    }
+}
+
+// ฟังก์ชันแปลงค่าจากช่องค้นหา (YYYY-MM-DD) เป็นรูปแบบตารางชีต (DD/MM/YYYY)
+function applyFilter() {
+    const filterVal = document.getElementById("dateFilter").value;
+    let formattedFilterDate = "";
+    
+    if (filterVal) {
+        const parts = filterVal.split('-');
+        formattedFilterDate = `${parts[2]}/${parts[1]}/${parts[0]}`; // กลายเป็น DD/MM/YYYY
+    }
+    
+    processAndRenderData(cachedRawData, formattedFilterDate);
+}
+
+// ฟังก์ชันล้างค่าตัวกรองเพื่อขอดูข้อมูลย้อนหลังทั้งหมด
+function clearDateFilter() {
+    document.getElementById("dateFilter").value = "";
+    processAndRenderData(cachedRawData, "");
+}
+
+// ==========================================
+// ฟังก์ชันจัดกลุ่ม แยกแถว OT และกรองตามวันที่คัดเลือก
+// ==========================================
+function processAndRenderData(rawData, filterDate) {
+    const tbody = document.getElementById("tableBody");
+    const grouped = {};
+
+    rawData.forEach(row => {
+        if (!row.scanTime || row.scanTime === "ยังไม่สแกน" || String(row.scanTime).trim() === "") return; 
+        if (!row.dateOnly) return;
+
+        // ---- แก้ไขปัญหาวันที่ย้อนหลัง (Timezone UTC -> Local) ----
+        let cleanDate = String(row.dateOnly).trim();
+        if (cleanDate.includes('T')) {
+            const dObj = new Date(cleanDate);
+            const day = String(dObj.getDate()).padStart(2, '0');
+            const month = String(dObj.getMonth() + 1).padStart(2, '0');
+            const year = dObj.getFullYear();
+            cleanDate = `${day}/${month}/${year}`;
+        } 
+        else if (cleanDate.includes('-') && cleanDate.split('-')[0].length === 4) {
+            let parts = cleanDate.split('-');
+            cleanDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        // 🌟 ตรวจสอบตัวกรองวันที่: ถ้ามีเงื่อนไขการค้นหา และวันที่ไม่ตรง ให้ข้ามรายการนี้ไปเลย
+        if (filterDate && cleanDate !== filterDate) return;
+
+        // ดึงเฉพาะเวลา (HH:mm) ตัดวินาทีทิ้ง
+        const timeMatch = row.scanTime.match(/\d{2}:\d{2}:\d{2}/);
+        const timeStr = timeMatch ? timeMatch[0].substring(0, 5) : "";
+
+        const key = `${row.empId}_${cleanDate}`;
+        
+        if (!grouped[key]) {
+            grouped[key] = {
+                empId: row.empId,
+                fullName: row.fullName,
+                dateOnly: cleanDate,
+                scans: [],
+                reasons: [] 
+            };
+        }
+
+        grouped[key].scans.push({
+            timeStr: timeStr,
+            scannerId: row.scannerId,
+            imageUrl: row.imageUrl
+        });
+
+        if (row.reason && row.reason !== "-" && !grouped[key].reasons.includes(row.reason)) {
+            grouped[key].reasons.push(row.reason);
+        }
+    });
+
+    const displayRows = [];
+
+    Object.values(grouped).forEach(group => {
+        group.scans.sort((a, b) => a.timeStr.localeCompare(b.timeStr));
+
+        // คลีนหมายเหตุ: ถ้าไม่มีข้อมูลใดๆ ปล่อยเป็นค่าว่างเปล่าแทนเครื่องหมาย "-"
+        const reasonText = group.reasons.length > 0 
+            ? `<div class="reason-text">${group.reasons.join('<br>')}</div>` 
+            : "";
+
+        for (let i = 0; i < group.scans.length; i += 2) {
+            const sIn = group.scans[i];
+            const sOut = group.scans[i + 1]; 
+            const isOT = (i >= 2); 
+
+            displayRows.push({
+                empId: group.empId,
+                fullName: group.fullName,
+                dateOnly: group.dateOnly,
+                sIn: sIn,
+                sOut: sOut,
+                isOT: isOT,
+                reasonText: reasonText,
+                sortDate: group.dateOnly.split('/').reverse().join(''),
+                sortTime: sIn.timeStr 
+            });
+        }
+    });
+
+displayRows.sort((a, b) => {
+         // 1. วันที่ล่าสุดอยู่บนสุด
+         if (b.sortDate !== a.sortDate) return b.sortDate.localeCompare(a.sortDate);
+         
+         // 2. เวลาสแกนล่าสุดอยู่บนสุด (ดันรายการใหม่สุดขึ้นบน)
+         if (b.sortTime !== a.sortTime) return b.sortTime.localeCompare(a.sortTime);
+         
+         // 3. ถ้าเวลาเท่ากันเป๊ะ ค่อยเรียงตามรหัสพนักงาน
+         return a.empId.localeCompare(b.empId);
+    });
+
+    if (displayRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 25px; color: var(--text-muted);">ไม่มีข้อมูลการสแกนในวันที่กำหนด</td></tr>`;
+        return;
+    }
+
+    let html = "";
+    
+    const buildScanCell = (scan) => {
+        if (!scan) return `<span style="color:#cbd5e1;">-</span>`;
+        
+        let imgHtml = "";
+        if (scan.imageUrl && scan.imageUrl.includes("id=")) {
+            const fileId = scan.imageUrl.split("id=")[1].split("&")[0];
+            const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w100`;
+            imgHtml = `<img src="${thumbnailUrl}" onclick="window.open('${scan.imageUrl}', '_blank')" title="คลิกเพื่อดูรูปเต็ม">`;
+        }
+        
+        return `
+            <div class="scan-time-cell">
+                <span class="time-text">${scan.timeStr}</span>
+                <div class="scanner-badge">
+                    <i class="fa-solid fa-user-check"></i> ${scan.scannerId}
+                    ${imgHtml}
+                </div>
+            </div>
+        `;
+    };
+
+    displayRows.forEach(row => {
+        // หากเป็น OT ให้เติมป้ายกำกับหลังชื่อ
+        const nameDisplay = row.isOT 
+            ? `${row.fullName}<sup class="ot-badge">OT</sup>` 
+            : row.fullName;
+
+        html += `
+            <tr>
+                <td><strong>${row.empId}</strong></td>
+                <td>${nameDisplay}</td>
+                <td>${row.dateOnly}</td>
+                <td>${buildScanCell(row.sIn)}</td>
+                <td>${buildScanCell(row.sOut)}</td>
+                <td>${row.reasonText}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+// เมื่อเปิดหน้าเว็บ: ให้คำนวณและตั้งค่า Date Picker เป็นวันที่ของวันนี้ทันที
+window.onload = function() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    
+    // กำหนดค่าดีฟอลต์ใน Input เป็นรูปแบบ YYYY-MM-DD
+    document.getElementById("dateFilter").value = `${yyyy}-${mm}-${dd}`;
+    
+    loadData();
+};
+</script>
+
+</body>
+</html>
