@@ -40,7 +40,7 @@ body {
 }
 
 .dashboard-container {
-    max-width: 1100px; /* ขยายความกว้างขึ้นนิดหน่อยเพื่อรองรับคอลัมน์ใหม่ */
+    max-width: 1100px;
     margin: 0 auto;
     background: var(--card-bg);
     backdrop-filter: var(--glass-blur);
@@ -140,7 +140,7 @@ h2 { margin: 0; color: var(--primary); display: flex; align-items: center; gap: 
 table {
     width: 100%;
     border-collapse: collapse;
-    white-space: nowrap;
+    /* 🌟 เอา white-space: nowrap; ออกจากตรงนี้ เพื่อให้ตารางยืดหยุ่นได้ 🌟 */
 }
 
 thead { background: rgba(241, 245, 249, 0.7); }
@@ -158,6 +158,11 @@ th { font-weight: 600; color: #475569; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: #f8fafc; }
 
+/* 🌟 คลาสป้องกันการฉีกคำ สำหรับคอลัมน์ที่ไม่ต้องการให้ขึ้นบรรทัดใหม่ 🌟 */
+.text-nowrap {
+    white-space: nowrap;
+}
+
 /* OT Badge ด้านหลังชื่อ */
 .ot-badge {
     color: var(--ot-color);
@@ -166,20 +171,26 @@ tbody tr:hover { background: #f8fafc; }
     font-size: 10px;
 }
 
-/* CSS สำหรับป้ายสถานะ (Status Badges) */
+/* 🌟 CSS สำหรับจัดระเบียบป้ายสถานะให้พับบรรทัดอัตโนมัติเมื่อเนื้อที่ไม่พอ 🌟 */
+.status-wrapper {
+    display: flex;
+    flex-wrap: wrap; /* ทำให้ Badge ตกบรรทัดได้ถ้ายาวเกิน */
+    gap: 6px; /* ระยะห่างระหว่าง Badge */
+}
+
 .status-badge {
     display: inline-block;
     padding: 4px 10px;
     border-radius: 8px;
     font-size: 11px;
     font-weight: 600;
-    margin-bottom: 4px;
-    margin-right: 4px;
+    white-space: nowrap; /* ห้ามตัวอักษรในป้ายฉีกขาด */
 }
-.bg-warning { background: #fef08a; color: #854d0e; border: 1px solid #fde047; } /* เหลือง: ไม่บันทึกเวลา */
-.bg-danger { background: #fecaca; color: #991b1b; border: 1px solid #fca5a5; } /* แดง: สาย/กลับก่อน */
-.bg-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; } /* เขียว: ปกติ */
-.bg-info { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; } /* น้ำเงิน: OT */
+
+.bg-warning { background: #fef08a; color: #854d0e; border: 1px solid #fde047; }
+.bg-danger { background: #fecaca; color: #991b1b; border: 1px solid #fca5a5; }
+.bg-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.bg-info { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
 
 /* ปรับแต่งส่วนแสดงเวลา */
 .scan-time-cell {
@@ -224,7 +235,7 @@ tbody tr:hover { background: #f8fafc; }
     box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
 }
 
-.reason-text { font-size: 13px; color: #4b5563; white-space: pre-wrap; }
+.reason-text { font-size: 13px; color: #4b5563; white-space: pre-wrap; word-break: break-word; } /* ยอมให้ข้อความยาวๆ ตกบรรทัด */
 .loading-state { text-align: center; padding: 50px; color: var(--text-muted); }
 </style>
 </head>
@@ -251,11 +262,11 @@ tbody tr:hover { background: #f8fafc; }
         <table>
             <thead>
                 <tr>
-                    <th>รหัส พนง.</th>
-                    <th>ชื่อ-สกุล</th>
-                    <th>วันที่</th>
-                    <th>เวลาเข้า</th>
-                    <th>เวลาออก</th>
+                    <th class="text-nowrap">รหัส พนง.</th>
+                    <th class="text-nowrap">ชื่อ-สกุล</th>
+                    <th class="text-nowrap">วันที่</th>
+                    <th class="text-nowrap">เวลาเข้า</th>
+                    <th class="text-nowrap">เวลาออก</th>
                     <th>สถานะ</th>
                     <th>เหตุผล / หมายเหตุ</th>
                 </tr>
@@ -374,7 +385,6 @@ function processAndRenderData(rawData, filterDate) {
             let sOut = group.scans[i + 1]; 
             const isOT = (i >= 2); 
 
-            // ลอจิกตรวจสอบสถานะกรณีสแกน 1 ครั้ง (ถ้าสแกนหลัง 12:00 ปัดเป็นเวลาออก)
             if (sIn && !sOut) {
                 if (sIn.timeStr >= "12:00") {
                     sOut = sIn;
@@ -382,7 +392,6 @@ function processAndRenderData(rawData, filterDate) {
                 }
             }
 
-            // คำนวณสถานะ
             let statusArr = [];
             
             if (!isOT) {
@@ -406,7 +415,7 @@ function processAndRenderData(rawData, filterDate) {
                 sIn: sIn,
                 sOut: sOut,
                 isOT: isOT,
-                statusHtml: statusArr.join(''), // รวมป้ายสถานะเป็น HTML
+                statusHtml: `<div class="status-wrapper">${statusArr.join('')}</div>`, // 🌟 ห่อ Status ด้วย Flexbox Wrapper 🌟
                 reasonText: reasonText,
                 sortDate: group.dateOnly.split('/').reverse().join(''),
                 sortTime: sIn ? sIn.timeStr : (sOut ? sOut.timeStr : "") 
@@ -414,7 +423,6 @@ function processAndRenderData(rawData, filterDate) {
         }
     });
 
-    // 1. วันที่ล่าสุดอยู่บน, 2. เวลาล่าสุดอยู่บน
     displayRows.sort((a, b) => {
          if (b.sortDate !== a.sortDate) return b.sortDate.localeCompare(a.sortDate);
          if (b.sortTime !== a.sortTime) return b.sortTime.localeCompare(a.sortTime);
@@ -454,13 +462,13 @@ function processAndRenderData(rawData, filterDate) {
 
         html += `
             <tr>
-                <td><strong>${row.empId}</strong></td>
-                <td>${nameDisplay}</td>
-                <td>${row.dateOnly}</td>
-                <td>${buildScanCell(row.sIn)}</td>
-                <td>${buildScanCell(row.sOut)}</td>
-                <td>${row.statusHtml}</td>
-                <td>${row.reasonText}</td>
+                <td class="text-nowrap"><strong>${row.empId}</strong></td>
+                <td class="text-nowrap">${nameDisplay}</td>
+                <td class="text-nowrap">${row.dateOnly}</td>
+                <td class="text-nowrap">${buildScanCell(row.sIn)}</td>
+                <td class="text-nowrap">${buildScanCell(row.sOut)}</td>
+                <td style="max-width: 200px;">${row.statusHtml}</td>
+                <td style="min-width: 150px; max-width: 250px;">${row.reasonText}</td>
             </tr>
         `;
     });
