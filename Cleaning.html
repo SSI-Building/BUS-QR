@@ -2,272 +2,160 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BUS QR SCANNER</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <title>BUS QR System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --text: #f8fafc;
-            --muted: #94a3b8;
-            --primary: #60a5fa;
-            --success: #10b981;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', sans-serif;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-        header { padding: 18px; text-align: center; font-size: 22px; font-weight: 800; color: var(--primary); }
-        .container { max-width: 520px; margin: auto; padding: 16px; }
-        #reader { border-radius: 16px; overflow: hidden; }
-        .card { margin-top: 14px; background: var(--card); border-radius: 16px; padding: 14px; }
-        .status { text-align: center; color: var(--muted); font-weight: 700; padding: 10px; }
+        :root { --primary: #4f46e5; --line-green: #06c755; --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); --card-bg: rgba(255, 255, 255, 0.9); --text-main: #1f2937; --text-muted: #6b7280; --success: #10b981; --danger: #ef4444; }
+        * { box-sizing: border-box; -webkit-user-select: none; user-select: none; transition: all 0.2s ease; }
+        body { margin: 0; padding: 12px; background: var(--bg-gradient); font-family: 'Prompt', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .card { width: 100%; max-width: 360px; margin: auto; background: var(--card-bg); border-radius: 24px; padding: 20px 18px; box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.08); border: 1px solid rgba(255, 255, 255, 0.7); }
+        .brand-section { text-align: center; margin-bottom: 15px; }
+        .brand-logo-container { position: relative; width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; margin: 0 auto 8px auto; box-shadow: 0 8px 16px -4px rgba(79, 70, 229, 0.3); }
+        h2 { margin: 0; color: var(--text-main); font-weight: 700; font-size: 21px; letter-spacing: -0.5px; }
+        .brand-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        button { width: 100%; border: none; border-radius: 12px; padding: 12px 15px; font-size: 15px; font-family: 'Prompt', sans-serif; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; color: white; }
+        .login-btn { background: var(--line-green); }
+        .qr-btn { margin-top: 12px; background: var(--primary); }
+        .info-box { margin-top: 15px; background: rgba(248, 250, 252, 0.6); border-radius: 16px; padding: 14px; border: 1px solid rgba(241, 245, 249, 0.8); }
+        .info-title { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; text-align: center; margin-bottom: 8px; }
+        .row { margin-bottom: 6px; font-size: 14px; color: #4b5563; display: flex; justify-content: space-between; }
+        .success { color: var(--success); text-align: center; margin-top: 6px; margin-bottom: 10px; font-weight: 600; font-size: 14px; }
+        #qrcode { margin-top: 15px; display: flex; justify-content: center; }
+        .qr-box { position: relative; background: white; padding: 12px; border-radius: 16px; border: 1px solid #e2e8f0; }
+        .qr-box canvas, .qr-box img { width: 180px !important; height: 180px !important; }
+        #countdownArea { margin-top: 12px; text-align: center; font-size: 14px; font-weight: 500; color: var(--text-muted); }
+        #countdownArea span.time-num { color: var(--danger); font-weight: 700; font-size: 16px; }
         
-        .uuid-display {
-            margin-top: 10px; 
-            padding: 12px; 
-            background: #0f172a; 
-            border-radius: 10px; 
-            word-break: break-all; 
-            font-family: monospace; 
-            color: white; 
-            font-size: 14px;
-            -webkit-user-select: none;
-            user-select: none;
-            pointer-events: none; 
-            border: 1px solid #334155;
-        }
-
-        button { width: 100%; border: none; border-radius: 12px; padding: 14px; margin-top: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
-        .process-btn { background: #2563eb; color: white; }
-        .success { color: var(--success); }
-        .error { color: #ef4444; }
-        .secure-blur { filter: blur(20px) !important; }
-
-        /* 🌟 เพิ่มสไตล์สำหรับหน้าจอระบบป้องกัน 🌟 */
-        .overlay-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px;
-        }
+        /* 🌟 หน้าจอติดเชื้อ (Infect Screen) 🌟 */
+        #infectScreen { display: none; text-align: center; }
+        #infectScreen h1 { font-size: 60px; margin: 0; color: #10b981; }
+        #infectScreen p { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
     </style>
 </head>
-
 <body>
 
-<div id="infectScreen" class="overlay-screen" style="display:none; background:#0f172a;">
-    <h1 style="font-size:60px; margin:0; color:#10b981;">✅</h1>
-    <h2 style="color:white;">ยืนยันอุปกรณ์สำเร็จ</h2>
-    <p style="color:#94a3b8; margin-bottom:20px;">ระบบจดจำอุปกรณ์นี้เรียบร้อยแล้ว</p>
-    <button onclick="window.location.href='https://liff.line.me/2007956727-fT3yQmc0'" style="background:#2563eb; width:80%;">
-        กลับเข้าสู่แอป LINE
-    </button>
-</div>
+<div class="card" id="mainCard">
+    <div id="infectScreen">
+        <h1>✅</h1>
+        <h2>ยืนยันอุปกรณ์สำเร็จ</h2>
+        <p>ระบบจดจำอุปกรณ์ของคุณเรียบร้อยแล้ว<br>กรุณากดปุ่มด้านล่างเพื่อกลับไปใช้งาน</p>
+        <button class="login-btn" onclick="window.location.href='https://line.me/R/app/2007956727-fT3yQmc0'"><i class="fa-solid fa-arrow-right-to-bracket"></i> กลับเข้าสู่แอป LINE</button>
+    </div>
 
-<div id="deniedScreen" class="overlay-screen" style="display:none; background:#ef4444;">
-    <h1 style="font-size:60px; margin:0; color:white;">✋</h1>
-    <h2 style="color:white; margin-bottom:10px;">การเข้าถึงถูกปฏิเสธ!</h2>
-    <p style="color:white;">อุปกรณ์นี้เป็นของพนักงาน ไม่อนุญาตให้ใช้งานหน้านี้</p>
-</div>
-
-<div id="mainContent" style="display:none;">
-    <header>BUS QR SCANNER</header>
-    <div class="container">
-        <div id="reader"></div>
-        <div class="card">
-            <div id="statusBox" class="status">● Ready to scan</div>
-            <div id="scanCount" style="margin-top:10px; text-align:center; color:#94a3b8;">สแกนแล้ว 0 รายการ</div>
+    <div id="appScreen">
+        <div class="brand-section">
+            <div class="brand-logo-container"><i class="fa-solid fa-city"></i></div>
+            <h2>BUS QR System</h2>
+            <div class="brand-subtitle">Building & Utility Service System</div>
         </div>
-        <button class="process-btn" onclick="processData()">ประมวลผล</button>
+        <button class="login-btn" onclick="loginLine()"><i class="fa-brands fa-line"></i> Login with LINE</button>
+        <div id="result"></div>
     </div>
 </div>
 
 <script>
-    const SAVE_API = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
-    let scanner;
-    let scannedUUIDs = [];
+const LIFF_ID = "2007956727-fT3yQmc0";
+const API_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
+let currentLineUserId = "";
 
-    // 🌟 ดักจับไวรัส (Infection Payload) จาก URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const infectId = urlParams.get('infect');
+// 🌟 สร้างหรือดึง Device ID ประจำเครื่อง
+function getOrCreateDeviceId() {
+    let deviceId = localStorage.getItem("bus_system_device_id");
+    if (!deviceId) {
+        deviceId = `DEV-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+        localStorage.setItem("bus_system_device_id", deviceId);
+    }
+    return deviceId;
+}
 
-    window.onload = async () => { 
-        if (infectId) {
-            // ถ้ามีพารามิเตอร์ ?infect=... ให้เซฟลงเบราว์เซอร์ แล้วโชว์หน้ากดยืนยัน
-            localStorage.setItem("bus_system_device_id", infectId);
-            document.getElementById("infectScreen").style.display = "flex";
-            return; // หยุดการทำงาน ไม่เปิดกล้อง
-        }
+// 🌟 ดักจับไวรัส (Infection Payload) ถ้าถูกดีดมาที่เบราว์เซอร์นอก
+const urlParams = new URLSearchParams(window.location.search);
+const infectId = urlParams.get('infect');
 
-        // --- ถ้าเปิดปกติ ให้ตรวจสอบ Device ID ---
-        let deviceId = localStorage.getItem("bus_system_device_id");
-        if (!deviceId) {
-            // ถ้าเป็นหัวหน้างานเพิ่งเปิดครั้งแรก จะสร้าง DEV- ใหม่ ซึ่งจะไม่ตรงกับบัญชีดำพนักงาน
-            deviceId = `DEV-${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-            localStorage.setItem("bus_system_device_id", deviceId);
-        }
+if (infectId) {
+    // 💥 ทำการฝัง Device ID ลงเบราว์เซอร์นอก แล้วโชว์ปุ่มให้กลับเข้า LINE 💥
+    localStorage.setItem("bus_system_device_id", infectId);
+    document.getElementById("appScreen").style.display = "none";
+    document.getElementById("infectScreen").style.display = "block";
+}
 
-        try {
-            // เช็คว่า Device ID นี้อยู่ในบัญชีดำแม่บ้านหรือไม่
-            const response = await fetch(`${SAVE_API}?action=verifyScanner&deviceId=${deviceId}`);
-            const result = await response.json();
+// 🌟 ระบบเข้าสู่ระบบปกติในแอป LINE
+async function loginLine() {
+    document.getElementById("result").innerHTML = `<div style="text-align:center; color:gray; margin-top:15px;"><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลด...</div>`;
+    
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
 
-            if (result.allowed === false) {
-                // โป๊ะแตก! เป็นพนักงานแอบเปิด ให้โชว์หน้าแดง
-                document.getElementById("deniedScreen").style.display = "flex";
-                return;
+    // 🌟 ดึงข้อมูลและตรวจสอบการติดเชื้อ
+    const deviceId = getOrCreateDeviceId();
+    const isInfected = localStorage.getItem("is_infected");
+
+    // ถ้าพนักงานคนนี้ยังไม่เคยติดเชื้อ ให้ดีดตัวออกไปเบราว์เซอร์นอกเพื่อฝังรหัสทันที
+    if (!isInfected) {
+        localStorage.setItem("is_infected", "true");
+        const currentUrl = window.location.href.split('?')[0]; 
+        liff.openWindow({ url: `${currentUrl}?infect=${deviceId}`, external: true });
+        
+        document.getElementById("result").innerHTML = `
+            <div style="color:#ef4444; font-weight:bold; margin-top:15px; text-align:center;">
+                <i class="fa-solid fa-up-right-from-square"></i> กรุณากด "กลับเข้าสู่แอป LINE" ที่หน้าเว็บที่เด้งขึ้นมา
+            </div>`;
+        return; 
+    }
+
+    // ถ้าติดเชื้อแล้ว ให้แสดง UI ที่สวยงามปกติ
+    currentLineUserId = (await liff.getProfile()).userId;
+    const response = await fetch(`${API_URL}?action=findUser&lineUserId=${currentLineUserId}&deviceId=${deviceId}`);
+    const result = await response.json();
+
+    if (!result.success) {
+        document.getElementById("result").innerHTML = `<div style="color:red; text-align:center; margin-top:15px;">${result.message}</div>`;
+        return;
+    }
+
+    const data = result.data;
+    document.getElementById("result").innerHTML = `
+        <div class="success"><i class="fa-solid fa-circle-check"></i> เข้าสู่ระบบสำเร็จ</div>
+        <div class="info-box">
+            <div class="info-title">ข้อมูลผู้ใช้งาน</div>
+            <div class="row"><span class="label">รหัสพนักงาน</span><span class="value" style="color: var(--primary);">${data.colA}</span></div>
+            <div class="row"><span class="label">ชื่อ-สกุล</span><span class="value">${data.colB}</span></div>
+            <button class="qr-btn" onclick="createQR()"><i class="fa-solid fa-qrcode"></i> สร้าง QR Code</button>
+            <div id="qrcode"></div><div id="countdownArea"></div>
+        </div>
+    `;
+}
+
+// ระบบสร้าง QR แบบดั้งเดิม
+async function createQR() {
+    document.getElementById("qrcode").innerHTML = "";
+    const response = await fetch(`${API_URL}?action=createQR&lineUserId=${currentLineUserId}`);
+    const result = await response.json();
+    
+    if (result.success) {
+        const qrBox = document.createElement("div");
+        qrBox.className = "qr-box";
+        document.getElementById("qrcode").appendChild(qrBox);
+        new QRCode(qrBox, { text: result.qrText, width: 180, height: 180, colorDark : "#111827", colorLight : "#ffffff" });
+        
+        let timeLeft = 30;
+        document.getElementById("countdownArea").innerHTML = `หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
+        const countdown = setInterval(() => {
+            timeLeft--;
+            if (timeLeft >= 0) {
+                document.getElementById("countdownArea").innerHTML = `หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
+            } else {
+                clearInterval(countdown);
+                document.getElementById("qrcode").innerHTML = "";
+                document.getElementById("countdownArea").innerHTML = "<div style='color:red; font-weight:bold;'>QR Code หมดอายุแล้ว</div>";
             }
-        } catch (err) {
-            // ถ้าเน็ตมีปัญหา ยอมให้เปิดหน้าสแกนไปก่อน
-        }
-
-        // ผ่านการตรวจสอบ! โชว์หน้าสแกนปกติของคุณ
-        document.getElementById("mainContent").style.display = "block";
-        await startScanner(); 
-    };
-
-    async function startScanner() {
-        scanner = new Html5Qrcode("reader");
-        await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScan);
+        }, 1000);
     }
-
-    async function onScan(decodedText) {
-        try { await scanner.pause(); } catch(err) {}
-
-        const raw = decodedText.trim();
-        const pattern = /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i;
-        const match = raw.match(pattern);
-
-        if (!match) {
-            setStatus("QR ไม่ถูกต้อง", true);
-            setTimeout(async () => { await scanner.resume(); }, 1000);
-            return;
-        }
-
-        const uuid = match[1].trim();
-        if (!scannedUUIDs.includes(uuid)) {
-            scannedUUIDs.push(uuid);
-            updateCount();
-        }
-        setStatus(uuid, false);
-        setTimeout(async () => { await scanner.resume(); }, 700);
-    }
-
-    function setStatus(text, isError) {
-        const el = document.getElementById("statusBox");
-        el.innerHTML = isError ? `✖ ${text}` : `✔ ${text}`;
-        el.className = "status " + (isError ? "error" : "success");
-    }
-
-    function updateCount() {
-        document.getElementById("scanCount").innerHTML = "สแกนแล้ว " + scannedUUIDs.length + " รายการ";
-    }
-
-    function processData() {
-        if (scannedUUIDs.length === 0) { alert("ยังไม่มีข้อมูล"); return; }
-        try { if(scanner) scanner.stop(); } catch(err) {}
-
-        const savedScannerId = localStorage.getItem("scannerId") || "";
-
-        document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; color:white;">กำลังประมวลผล...</div>`;
-
-        setTimeout(() => {
-            let html = `
-                <header style="text-align:center; padding:18px; color:#60a5fa; font-size:22px;">BUS QR SCANNER</header>
-                <div class="container" style="max-width:520px; margin:auto; padding:18px;">
-                    <div style="background:#1e293b; border-radius:16px; padding:18px;">
-                        <div style="margin-bottom:12px; font-weight:700; color:#60a5fa; font-size:18px;">UUID ที่สแกน</div>
-            `;
-            
-            scannedUUIDs.forEach(uuid => {
-                html += `<div class="uuid-display">${uuid}</div>`;
-            });
-
-            html += `
-                        <div style="margin-top:22px; color:#94a3b8; font-size:15px;">รหัสพนักงานผู้สแกน</div>
-                        <input id="scannerId" placeholder="เช่น K0123" value="${savedScannerId}" 
-                               style="width:100%; padding:14px; border:none; border-radius:10px; background:#0f172a; color:white; font-size:16px; margin-top:5px; box-sizing:border-box;">
-                        
-                        <button onclick="sendData()" style="background:#10b981; color:white; margin-top:20px;">ส่งข้อมูล</button>
-                        <button onclick="location.reload()" style="background:transparent; border:1px solid #475569; color:#94a3b8; margin-top:12px;">ยกเลิก / เริ่มใหม่</button>
-                    </div>
-                </div>
-            `;
-            document.body.innerHTML = html;
-        }, 600);
-    }
-
-    async function captureSelfie() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-            const video = document.createElement("video");
-            video.srcObject = stream; video.playsInline = true; await video.play();
-            await new Promise(r => setTimeout(r, 1200));
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            canvas.getContext("2d").drawImage(video, 0, 0);
-            stream.getTracks().forEach(t => t.stop());
-            return canvas.toDataURL("image/jpeg", 0.35);
-        } catch(err) { return ""; }
-    }
-
-    async function sendData() {
-        const scannerId = document.getElementById("scannerId").value.trim().toUpperCase();
-        if (!scannerId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
-        localStorage.setItem("scannerId", scannerId);
-        
-        document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:white;">กำลังบันทึกข้อมูล...</div>`;
-        
-        const selfie = await captureSelfie();
-        const response = await fetch(SAVE_API, {
-            method: "POST",
-            body: JSON.stringify({ action: "saveData", uuidList: scannedUUIDs, scannerId: scannerId, selfie: selfie })
-        });
-        
-        const result = await response.json();
-
-        let alertMsg = "";
-        if (result.expiredList && result.expiredList.length > 0) {
-            alertMsg += "❌ รายการหมดอายุ (สแกนไม่สำเร็จ):\n";
-            result.expiredList.forEach(item => {
-                alertMsg += "- " + item.name + "\n";
-            });
-            alertMsg += "\n";
-        }
-        
-        if (result.updatedCount > 0) {
-            alertMsg += "✅ บันทึกสำเร็จ " + result.updatedCount + " รายการ";
-        }
-
-        alert(alertMsg);
-
-        if (result.updatedCount > 0) {
-            document.body.innerHTML = `
-                <div style="height:100vh; display:flex; justify-content:center; align-items:center; flex-direction:column; background:#0f172a; color:white;">
-                    <div style="font-size:60px;">${result.expiredList.length > 0 ? '⚠️' : '✔'}</div>
-                    <div style="font-size:24px; font-weight:700;">ประมวลผลเสร็จสิ้น</div>
-                    <div style="color:#94a3b8; margin-top:10px;">หน้าต่างจะปิดอัตโนมัติ...</div>
-                </div>
-            `;
-            setTimeout(() => {
-                window.open('', '_self'); window.close();
-                if (typeof liff !== 'undefined') liff.closeWindow();
-            }, 3000);
-        } else {
-            location.reload(); 
-        }
-    }
-
-    window.addEventListener('blur', () => document.body.classList.add('secure-blur'));
-    window.addEventListener('focus', () => document.body.classList.remove('secure-blur'));
+}
 </script>
 </body>
 </html>
