@@ -131,7 +131,8 @@
         try { await scanner.pause(); } catch(err) {}
 
         const raw = decodedText.trim();
-        const pattern = /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i;
+        // 🌟 เปลี่ยน pattern เพื่อดักจับลิงก์ LIFF ตัวใหม่ 🌟
+        const pattern = /^https:\/\/liff\.line\.me\/2007956727-gZOxrA26\?id=(.+)$/i;
         const match = raw.match(pattern);
 
         if (!match) {
