@@ -399,23 +399,6 @@ let isQRActive = false;
 document.addEventListener("contextmenu", (e) => e.preventDefault());
 
 // ========================================
-// SECURITY: สร้างและดึงรหัสประจำเครื่อง
-// ========================================
-function getOrCreateDeviceId() {
-    let deviceId = localStorage.getItem("bus_system_device_id");
-    
-    // ถ้าไม่มีรหัสเครื่องฝังอยู่ ให้สุ่มสร้างใหม่ถาวร
-    if (!deviceId) {
-        const randomPart = Math.random().toString(36).substring(2, 11).toUpperCase();
-        const timePart = Date.now().toString(36).toUpperCase();
-        deviceId = `DEV-${randomPart}${timePart}`;
-        
-        localStorage.setItem("bus_system_device_id", deviceId);
-    }
-    return deviceId;
-}
-
-// ========================================
 // LOGIN
 // ========================================
 async function loginLine() {
@@ -425,9 +408,6 @@ async function loginLine() {
                 <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูล...
             </div>
         `;
-
-        // 🌟 เรียกใช้ฟังก์ชันดึง Device ID
-        const currentDeviceId = getOrCreateDeviceId();
 
         await liff.init({ liffId: LIFF_ID });
 
@@ -439,9 +419,8 @@ async function loginLine() {
         const profile = await liff.getProfile();
         currentLineUserId = profile.userId;
 
-        // 🌟 แนบ Device ID ส่งพ่วงไปกับ URL เพื่ออัปเดตลง Google Sheets
         const response = await fetch(
-            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}&deviceId=${currentDeviceId}`
+            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}`
         );
         const result = await response.json();
 
