@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BUS QR SCANNER</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
@@ -14,6 +15,7 @@
             --muted: #94a3b8;
             --primary: #60a5fa;
             --success: #10b981;
+            --danger: #ef4444;
         }
 
         body {
@@ -31,7 +33,6 @@
         .card { margin-top: 14px; background: var(--card); border-radius: 16px; padding: 14px; }
         .status { text-align: center; color: var(--muted); font-weight: 700; padding: 10px; }
         
-        /* สไตล์สำหรับล็อก UUID ไม่ให้แก้ไข */
         .uuid-display {
             margin-top: 10px; 
             padding: 12px; 
@@ -43,7 +44,7 @@
             font-size: 14px;
             -webkit-user-select: none;
             user-select: none;
-            pointer-events: none;      /* ห้ามสัมผัส/แก้ไข */
+            pointer-events: none; 
             border: 1px solid #334155;
         }
 
@@ -52,20 +53,41 @@
         .success { color: var(--success); }
         .error { color: #ef4444; }
         .secure-blur { filter: blur(20px) !important; }
+
+        /* 🌟 สไตล์สำหรับหน้าจอตรวจสอบและบล็อก 🌟 */
+        .overlay-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px;
+        }
+        #loadingAuth { background: #0f172a; color: white; }
+        #deniedAuth { background: rgba(239, 68, 68, 0.95); color: white; backdrop-filter: blur(10px); }
     </style>
 </head>
 
 <body>
 
-<header>BUS QR SCANNER</header>
+<div id="loadingAuth" class="overlay-screen">
+    <i class="fa-solid fa-shield-halved fa-beat-fade" style="font-size: 50px; color: var(--primary); margin-bottom: 20px;"></i>
+    <div style="font-size: 18px; font-weight: bold;">กำลังตรวจสอบสิทธิ์การเข้าถึง...</div>
+</div>
 
-<div class="container">
-    <div id="reader"></div>
-    <div class="card">
-        <div id="statusBox" class="status">● Ready to scan</div>
-        <div id="scanCount" style="margin-top:10px; text-align:center; color:#94a3b8;">สแกนแล้ว 0 รายการ</div>
+<div id="deniedAuth" class="overlay-screen" style="display: none;">
+    <i class="fa-solid fa-hand" style="font-size: 70px; margin-bottom: 20px;"></i>
+    <div style="font-size: 26px; font-weight: 900; margin-bottom: 10px;">การเข้าถึงถูกปฏิเสธ!</div>
+    <div id="deniedMsg" style="font-size: 16px;">อุปกรณ์นี้เป็นของพนักงาน ไม่อนุญาตให้ใช้งานหน้านี้</div>
+</div>
+
+<div id="mainContent" style="display: none;">
+    <header>BUS QR SCANNER</header>
+    <div class="container">
+        <div id="reader"></div>
+        <div class="card">
+            <div id="statusBox" class="status">● Ready to scan</div>
+            <div id="scanCount" style="margin-top:10px; text-align:center; color:#94a3b8;">สแกนแล้ว 0 รายการ</div>
+        </div>
+        <button class="process-btn" onclick="processData()">ประมวลผล</button>
     </div>
-    <button class="process-btn" onclick="processData()">ประมวลผล</button>
 </div>
 
 <script>
@@ -73,7 +95,46 @@
     let scanner;
     let scannedUUIDs = [];
 
-    window.onload = async () => { await startScanner(); };
+    // 🌟 1. ดึงหรือสร้างรหัสประจำเครื่อง
+    function getOrCreateDeviceId() {
+        let deviceId = localStorage.getItem("bus_system_device_id");
+        if (!deviceId) {
+            const randomPart = Math.random().toString(36).substring(2, 11).toUpperCase();
+            const timePart = Date.now().toString(36).toUpperCase();
+            deviceId = `DEV-${randomPart}${timePart}`;
+            localStorage.setItem("bus_system_device_id", deviceId);
+        }
+        return deviceId;
+    }
+
+    // 🌟 2. ตรวจสอบสิทธิ์ตอนเปิดเว็บ
+    window.onload = async () => { 
+        const currentDeviceId = getOrCreateDeviceId();
+        
+        try {
+            // ยิงไปเช็คบัญชีดำที่ Apps Script
+            const response = await fetch(`${SAVE_API}?action=verifyScanner&deviceId=${currentDeviceId}`);
+            const result = await response.json();
+
+            if (result.allowed === false) {
+                // ถ้าโดนบล็อก ให้โชว์หน้าแดง
+                document.getElementById('loadingAuth').style.display = 'none';
+                document.getElementById('deniedAuth').style.display = 'flex';
+                document.getElementById('deniedMsg').innerText = result.message;
+                return; // หยุดการทำงานแค่นี้ ไม่เปิดกล้อง
+            }
+        } catch (error) {
+            console.error("Auth Check Failed", error);
+            // ถ้าเน็ตหลุดตอนเช็ค ให้ยอมปล่อยผ่านไปก่อน เพื่อไม่ให้หัวหน้างานตัวจริงเดือดร้อน
+        }
+
+        // ถ้ารอด หรือเป็นหัวหน้างาน
+        document.getElementById('loadingAuth').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        await startScanner(); 
+    };
+
+    // ... (ฟังก์ชัน startScanner, onScan, processData, captureSelfie, sendData เหมือนของเดิมที่คุณมีทั้งหมด) ...
 
     async function startScanner() {
         scanner = new Html5Qrcode("reader");
@@ -112,11 +173,10 @@
         document.getElementById("scanCount").innerHTML = "สแกนแล้ว " + scannedUUIDs.length + " รายการ";
     }
 
-function processData() {
+    function processData() {
         if (scannedUUIDs.length === 0) { alert("ยังไม่มีข้อมูล"); return; }
         try { if(scanner) scanner.stop(); } catch(err) {}
 
-        // --- แก้ไขจุดนี้: ดึงค่าที่จำไว้มาแสดง ---
         const savedScannerId = localStorage.getItem("scannerId") || "";
 
         document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; color:white;">กำลังประมวลผล...</div>`;
@@ -161,7 +221,7 @@ function processData() {
         } catch(err) { return ""; }
     }
 
-async function sendData() {
+    async function sendData() {
         const scannerId = document.getElementById("scannerId").value.trim().toUpperCase();
         if (!scannerId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
         localStorage.setItem("scannerId", scannerId);
@@ -176,7 +236,6 @@ async function sendData() {
         
         const result = await response.json();
 
-        // 🌟 ปรับการแจ้งเตือน
         let alertMsg = "";
         if (result.expiredList && result.expiredList.length > 0) {
             alertMsg += "❌ รายการหมดอายุ (สแกนไม่สำเร็จ):\n";
@@ -192,7 +251,6 @@ async function sendData() {
 
         alert(alertMsg);
 
-        // ถ้าบันทึกสำเร็จแม้บางรายการจะหมดอายุ ให้แสดงหน้า Success
         if (result.updatedCount > 0) {
             document.body.innerHTML = `
                 <div style="height:100vh; display:flex; justify-content:center; align-items:center; flex-direction:column; background:#0f172a; color:white;">
@@ -206,7 +264,7 @@ async function sendData() {
                 if (typeof liff !== 'undefined') liff.closeWindow();
             }, 3000);
         } else {
-            location.reload(); // ถ้าไม่สำเร็จเลยให้รีเฟรชใหม่
+            location.reload(); 
         }
     }
 
