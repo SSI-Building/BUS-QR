@@ -161,7 +161,7 @@
         .scanner-badge img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; cursor: pointer; border: 1.5px solid #cbd5e1; transition: transform 0.2s; }
         .scanner-badge img:hover { transform: scale(1.2); border-color: var(--primary); box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2); }
 
-        /* 🌟 สไตล์สำหรับรูปโปรไฟล์พนักงาน 🌟 */
+        /* 🌟 สไตล์สำหรับรูปโปรไฟล์พนักงานที่ปรับให้กดได้ 🌟 */
         .emp-profile-wrapper {
             display: flex;
             align-items: center;
@@ -175,12 +175,21 @@
             object-fit: cover;
             border: 2px solid #e2e8f0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            background-color: #f1f5f9; /* สีพื้นหลังกรณีไม่มีรูป */
+            background-color: #f1f5f9; 
             display: flex;
             align-items: center;
             justify-content: center;
             color: #94a3b8;
             font-size: 14px;
+            cursor: pointer; /* เปลี่ยนเมาส์เป็นรูปนิ้วตอนชี้ */
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        
+        /* ลูกเล่นตอนเอาเมาส์ชี้รูปโปรไฟล์ */
+        img.emp-profile-img:hover {
+            transform: scale(1.15);
+            border-color: var(--primary);
+            box-shadow: 0 4px 8px rgba(79, 70, 229, 0.2);
         }
 
         .reason-text { font-size: 13px; color: #4b5563; white-space: pre-wrap; word-break: break-word; } 
@@ -305,7 +314,7 @@ function processAndRenderData(rawData, filterDate) {
             grouped[key] = {
                 empId: row.empId,
                 fullName: row.fullName,
-                profilePic: row.profilePic, // 🌟 เก็บรูปลิงก์โปรไฟล์ไว้ใน Group ด้วย
+                profilePic: row.profilePic, 
                 dateOnly: cleanDate,
                 scans: [],
                 reasons: [] 
@@ -360,7 +369,7 @@ function processAndRenderData(rawData, filterDate) {
             displayRows.push({
                 empId: group.empId,
                 fullName: group.fullName,
-                profilePic: group.profilePic, // 🌟 ส่งรูปลิงก์ต่อให้ Row
+                profilePic: group.profilePic,
                 dateOnly: group.dateOnly,
                 sIn: sIn,
                 sOut: sOut,
@@ -408,19 +417,20 @@ function processAndRenderData(rawData, filterDate) {
     };
 
     displayRows.forEach(row => {
-        // 🌟 ตกแต่งชื่อให้มีรูปโปรไฟล์นำหน้า 🌟
+        // 🌟 ปรับให้รูประบุ onclick เพื่อเปิดรูปเต็ม 🌟
         let nameWithPic = "";
         if (row.profilePic && row.profilePic !== "") {
-            // ถ้ามีรูปลิงก์จาก LINE ให้แสดงรูป
             nameWithPic = `
                 <div class="emp-profile-wrapper">
-                    <img src="${row.profilePic}" class="emp-profile-img" alt="Profile" onerror="this.onerror=null; this.innerHTML='<i class=\\'fa-solid fa-user\\'></i>'; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <img src="${row.profilePic}" class="emp-profile-img" alt="Profile" 
+                         onclick="window.open('${row.profilePic}', '_blank')" 
+                         title="คลิกเพื่อดูรูปโปรไฟล์เต็ม"
+                         onerror="this.onerror=null; this.innerHTML='<i class=\\'fa-solid fa-user\\'></i>'; this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <div class="emp-profile-img" style="display:none;"><i class="fa-solid fa-user"></i></div>
                     <span>${row.isOT ? `${row.fullName}<sup class="ot-badge">OT</sup>` : row.fullName}</span>
                 </div>
             `;
         } else {
-            // ถ้าไม่มีรูป ให้ใส่ไอคอนคนแทน
             nameWithPic = `
                 <div class="emp-profile-wrapper">
                     <div class="emp-profile-img"><i class="fa-solid fa-user"></i></div>
