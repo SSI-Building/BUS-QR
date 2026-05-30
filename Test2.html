@@ -52,11 +52,22 @@
         .success { color: var(--success); }
         .error { color: #ef4444; }
         
-        /* 🌟 สไตล์สำหรับหน้าจอโหลดและหน้าจอบล็อก 🌟 */
+        /* 🌟 แก้ไขสไตล์หน้าจอโหลด/บล็อก ให้กึ่งกลาง 100% 🌟 */
         .overlay-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px;
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100vh; /* ใช้ 100vh เพื่อให้เต็มความสูงหน้าจอพอดี */
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            z-index: 9999; 
+            font-family: 'Segoe UI', sans-serif; 
+            text-align: center; 
+            padding: 20px;
+            box-sizing: border-box; /* สำคัญ: ป้องกันการบิดเบี้ยวจาก padding */
         }
         #loadingAuth { background: #0f172a; color: white; }
         #deniedAuth { background: rgba(239, 68, 68, 0.95); color: white; backdrop-filter: blur(10px); }
@@ -91,18 +102,16 @@
 </div>
 
 <script>
-    const SCANNER_LIFF_ID = "2007956727-gZOxrA26"; // LIFF ID ของหน้าเว็บสแกน (เว็บที่ 2)
+    const SCANNER_LIFF_ID = "2007956727-gZOxrA26"; 
     const SAVE_API = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
     
     let scanner;
     let scannedUUIDs = [];
 
-    // 🌟 เริ่มกระบวนการตรวจสอบสิทธิ์ทันทีที่โหลดเว็บ 🌟
     window.onload = async () => { 
         try {
             await liff.init({ liffId: SCANNER_LIFF_ID });
             
-            // บังคับล็อกอินดึงบัญชี LINE
             if (!liff.isLoggedIn()) {
                 liff.login();
                 return;
@@ -111,11 +120,9 @@
             const profile = await liff.getProfile();
             const currentLineUserId = profile.userId;
 
-            // 🚨 ยิงไปถาม Apps Script ว่า Line ID นี้เป็นพนักงานแม่บ้านหรือไม่?
             const response = await fetch(`${SAVE_API}?action=verifyScanner&scannerLineId=${currentLineUserId}`);
             const result = await response.json();
 
-            // ถ้าเจอว่าเป็นพนักงานแม่บ้าน -> โชว์หน้าแดง บล็อกทันที!
             if (result.allowed === false) {
                 document.getElementById('loadingAuth').style.display = 'none';
                 document.getElementById('deniedAuth').style.display = 'flex';
@@ -126,15 +133,11 @@
             console.error("LIFF Check Failed", error);
         }
 
-        // ถ้ารอดการตรวจสอบ (หัวหน้างานเข้าใช้งาน)
         document.getElementById('loadingAuth').style.display = 'none';
         document.getElementById('mainScannerApp').style.display = 'block';
         await startScanner(); 
     };
 
-    // ==========================================
-    // โค้ดกล้องและการบันทึก
-    // ==========================================
     async function startScanner() {
         if (!scanner) {
             scanner = new Html5Qrcode("reader");
@@ -189,7 +192,6 @@
         if (scannedUUIDs.length === 0) { alert("ยังไม่มีข้อมูล"); return; }
         try { if(scanner) scanner.stop(); } catch(err) {}
 
-        // 🌟 ดึงรหัสพนักงานที่เคยพิมพ์ไว้จาก LocalStorage (เหมือนเว็บที่ 1)
         const savedScannerId = localStorage.getItem("scannerId") || "";
 
         document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; color:white;">กำลังประมวลผล...</div>`;
@@ -206,7 +208,6 @@
                 html += `<div class="uuid-display">${uuid}</div>`;
             });
 
-            // 🌟 กลับมาใช้ Input Box ให้หัวหน้าพิมพ์และจำค่า
             html += `
                         <div style="margin-top:22px; color:#94a3b8; font-size:15px;">รหัสพนักงานผู้สแกน</div>
                         <input id="scannerId" placeholder="เช่น K0123" value="${savedScannerId}" 
@@ -236,11 +237,9 @@
     }
 
     async function sendData() {
-        // 🌟 ดึงค่าจากการพิมพ์ (และแปลงเป็นตัวพิมพ์ใหญ่)
         const scannerId = document.getElementById("scannerId").value.trim().toUpperCase();
         if (!scannerId) { alert("กรุณากรอกรหัสพนักงานผู้สแกน"); return; }
         
-        // 🌟 จำค่าลงเครื่อง
         localStorage.setItem("scannerId", scannerId);
         
         document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#0f172a; color:white;">กำลังบันทึกข้อมูล...</div>`;
