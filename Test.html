@@ -111,7 +111,7 @@
             }
 
             // 3. เช็คว่าหัวหน้าเคยลงทะเบียนหรือยัง
-            const checkRes = await fetch(`${API_URL}?action=checkForeman&lineUserId=${lineProfile.userId}`);
+            const checkRes = await fetch(`${API_URL}?action=checkForeman&lineUserId=${lineProfile.userId}&t=${Date.now()}`);
             const foremanData = await checkRes.json();
 
             if (foremanData.registered === true) {
