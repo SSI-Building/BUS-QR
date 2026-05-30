@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -16,7 +15,6 @@
         }
         * { box-sizing: border-box; font-family: 'Prompt', sans-serif; -webkit-user-select: none; user-select: none; }
         body { margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: -webkit-fill-available; flex-direction: column; overflow: hidden; padding: 20px;}
-        
         html { height: -webkit-fill-available; }
 
         .container { text-align: center; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1;}
@@ -27,45 +25,64 @@
         h1 { font-size: 26px; margin: 0 0 12px 0; color: white; font-weight: 700; letter-spacing: -0.5px;}
         p { color: var(--muted); font-size: 16px; margin: 0 0 25px 0; line-height: 1.6; }
         
-        /* สไตล์สำหรับหน้าสแกนใบหน้า */
         .register-card { background: var(--card); border-radius: 28px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center; display: none; width: 100%; max-width: 360px; border: 1px solid #334155;}
         
-        .input-group { margin-bottom: 25px; text-align: left; }
+        .input-group { margin-bottom: 20px; text-align: left; }
         .input-group label { display: block; color: var(--muted); font-size: 14px; margin-bottom: 10px; font-weight: 600; }
-        input[type="text"] { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #0f172a; color: white; font-size: 16px; outline: none; border: 1px solid #334155;}
+        input[type="text"] { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #0f172a; color: white; font-size: 16px; outline: none; border: 1px solid #334155; text-align: center; font-weight: 700; letter-spacing: 1px;}
         input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2); }
         
         button { width: 100%; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s;}
         button:active { transform: scale(0.98); }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
-        .btn-success { background: var(--success); color: white; }
         
-        /* 🌟 กรอบกล้องและ OVERLAY สแกนใบหน้า 🌟 */
+        /* 🌟 ปรับปรุงกรอบวิดีโอให้เข้ากับ SVG มุมทั้ง 4 🌟 */
         .video-container { 
             width: 100%; 
             aspect-ratio: 1; 
-            border-radius: 50%; 
+            border-radius: 24px; /* เปลี่ยนกลับเป็นสี่เหลี่ยมโค้งมนเพื่อให้เข้ากับมุม SVG */
             overflow: hidden; 
             background: #0f172a; 
-            margin-bottom: 20px; 
+            margin-bottom: 15px; 
             display: none; 
             position: relative; 
-            border: 4px solid var(--primary);
-            box-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
+            border: 3px solid #334155;
+            transition: border-color 0.3s;
         }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
-        /* 🌟 เส้นเป้าหมายรูปใบหน้า (Face Overlay) 🌟 */
-        .face-overlay {
+        /* 🌟 SVG OVERLAY จากของคุณ 🌟 */
+        .face-svg-overlay {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="%2360a5fa" stroke-width="1.5" stroke-dasharray="3 3"><path d="M50 15c-15 0-25 10-25 25 0 10 5 20 10 25s10 10 15 10c15 0 25-10 25-25 0-15-10-25-25-25zM50 75v10M35 70s-5 8 0 12h30s5-4 0-12"/></svg>');
-            background-size: 60%;
-            background-position: center 40%;
-            background-repeat: no-repeat;
-            opacity: 0.6;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%; height: 85%;
             pointer-events: none;
+            z-index: 10;
+        }
+
+        /* 🌟 อนิเมชั่นเลเซอร์สแกน 🌟 */
+        .laser-line {
+            animation: scanLaser 1.5s infinite alternate ease-in-out;
+        }
+        @keyframes scanLaser {
+            0% { transform: translateY(-3px); }
+            100% { transform: translateY(3px); }
+        }
+
+        /* 🌟 เอฟเฟกต์แสงแฟลชตอนจับภาพอัตโนมัติ 🌟 */
+        .flash-effect {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: white; opacity: 0; z-index: 20; pointer-events: none;
+        }
+        .flash-active { animation: flashAnim 0.6s ease-out; }
+        @keyframes flashAnim {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        #scanStatusText {
+            font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 10px; display: none;
         }
     </style>
 </head>
@@ -75,29 +92,37 @@
 <div id="loadingScreen" class="container">
     <i class="fa-solid fa-face-viewfinder icon-large spin" style="color: var(--primary);"></i>
     <h1 id="loadingTitle">กำลังประมวลผล...</h1>
-    <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูลใบหน้า</p>
+    <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูล</p>
 </div>
 
 <div id="registerScreen" class="register-card">
-    <i class="fa-solid fa-face-viewfinder" style="font-size: 45px; color: var(--warning); margin-bottom: 15px;"></i>
-    <h1 style="font-size: 22px; font-weight: 800;">ยืนยันใบหน้า</h1>
-    <p style="font-size: 14px; margin-bottom: 20px;">เพื่อความปลอดภัยของระบบ กรุณาสแกนใบหน้าและกรอกรหัสพนักงานในครั้งแรกเท่านั้น</p>
+    <h1 style="font-size: 22px; font-weight: 800; color: var(--primary);">AI Face Verification</h1>
+    <p style="font-size: 13px; margin-bottom: 20px;">กรุณากรอกรหัสและสแกนใบหน้าเพื่อยืนยันสิทธิ์ (ครั้งแรกเท่านั้น)</p>
     
     <div class="input-group">
-        <label>รหัสพนักงานผู้สแกน</label>
-        <input type="text" id="empIdInput" placeholder="เช่น K0123" autocomplete="off" inputmode="text">
+        <input type="text" id="empIdInput" placeholder="รหัสพนักงาน (เช่น K0123)" autocomplete="off" inputmode="text">
     </div>
 
     <div id="cameraArea" class="video-container">
         <video id="selfieVideo" playsinline autoplay muted></video>
-        <div class="face-overlay"></div>
+        <div class="flash-effect" id="flashScreen"></div>
+        
+        <svg class="face-svg-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3" stroke="var(--primary)" stroke-width="1.5" />
+          <path d="M9 14.5a3 3 0 0 0 6 0V11a3 3 0 0 0-6 0v3.5z" />
+          <path d="M7 10a5 5 0 0 1 10 0" />
+          <line x1="10.5" y1="11" x2="11" y2="11" stroke-width="2.5" />
+          <line x1="13" y1="11" x2="13.5" y2="11" stroke-width="2.5" />
+          <path d="M12 11v1.5h.5" />
+          <path d="M10.5 14.5a1.5 1.5 0 0 0 3 0" />
+          <line class="laser-line" x1="2" y1="12" x2="22" y2="12" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="2 2" />
+        </svg>
     </div>
     
-    <button id="startCamBtn" class="btn-primary" onclick="startCamera()">
+    <div id="scanStatusText">กรุณาจัดใบหน้าให้อยู่ในกรอบ...</div>
+
+    <button id="startCamBtn" class="btn-primary" onclick="startCameraSequence()">
         <i class="fa-solid fa-camera"></i> เปิดกล้องสแกนใบหน้า
-    </button>
-    <button id="captureBtn" class="btn-success" onclick="captureAndRegister()" style="display: none;">
-        <i class="fa-solid fa-expand"></i> ถ่ายภาพและยืนยัน
     </button>
 </div>
 
@@ -129,8 +154,8 @@
             }
 
             lineProfile = await liff.getProfile();
-
             updateLoading("กำลังตรวจสอบสิทธิ์ใบหน้า...");
+            
             const verifyRes = await fetch(`${API_URL}?action=verifyScanner&scannerLineId=${lineProfile.userId}`);
             const verifyData = await verifyRes.json();
 
@@ -149,30 +174,59 @@
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
             }
-
         } catch (error) {
             showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", "error");
         }
     };
 
-    async function startCamera() {
+    // 🌟 ระบบจับภาพอัตโนมัติ (Smart Auto-Capture Illusion) 🌟
+    async function startCameraSequence() {
+        const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
+        if (!empId) return alert("กรุณากรอกรหัสพนักงานให้เรียบร้อยก่อนเปิดกล้องครับ");
+
         try {
             videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
-            const videoElement = document.getElementById('selfieVideo');
-            videoElement.srcObject = videoStream;
+            document.getElementById('selfieVideo').srcObject = videoStream;
             
-            document.getElementById('cameraArea').style.display = 'block';
+            // ปรับ UI เปิดกล้อง
             document.getElementById('startCamBtn').style.display = 'none';
-            document.getElementById('captureBtn').style.display = 'flex';
+            document.getElementById('empIdInput').disabled = true;
+            document.getElementById('cameraArea').style.display = 'block';
+            
+            const statusText = document.getElementById('scanStatusText');
+            statusText.style.display = 'block';
+            statusText.innerText = "กำลังค้นหาใบหน้า...";
+            statusText.style.color = "var(--warning)";
+
+            // ⏱️ หน่วงเวลาบิ๊วอารมณ์ 2 วินาที
+            setTimeout(() => {
+                statusText.innerText = "ตรวจพบใบหน้า... กรุณาอยู่นิ่งๆ";
+                statusText.style.color = "var(--primary)";
+                document.getElementById('cameraArea').style.borderColor = "var(--primary)";
+            }, 2000);
+
+            // 📸 ยิงแฟลชและจับภาพอัตโนมัติในวินาทีที่ 3.5
+            setTimeout(() => {
+                statusText.innerText = "จับภาพสำเร็จ!";
+                statusText.style.color = "var(--success)";
+                document.getElementById('cameraArea').style.borderColor = "var(--success)";
+                
+                // สั่ง Flash หน้าจอ
+                document.getElementById('flashScreen').classList.add('flash-active');
+                
+                // สั่งถ่ายรูปส่งเข้าเซิร์ฟเวอร์
+                setTimeout(() => {
+                    executeCapture(empId);
+                }, 400); // รอแสงแฟลชหายแว้บนึงค่อยประมวลผล
+            }, 3500);
+
         } catch (err) {
-            alert("ไม่สามารถเปิดกล้องสแกนได้ กรุณาอนุญาตการเข้าถึงกล้อง");
+            alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาตใช้งานกล้อง");
         }
     }
 
-    async function captureAndRegister() {
-        const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
-        if (!empId) return alert("กรุณากรอกรหัสพนักงาน");
-
+    // ฟังก์ชันถ่ายรูปตัวจริง (ถูกเรียกใช้อัตโนมัติ)
+    async function executeCapture(empId) {
         updateLoading("กำลังประมวลผลใบหน้า...");
         const video = document.getElementById('selfieVideo');
         const canvas = document.createElement("canvas");
@@ -207,14 +261,12 @@
         const regData = await regRes.json();
         
         if (regData.success) {
-            // 🌟 ส่งค่า true ไปบอกฟังก์ชันว่า "เพิ่งลงทะเบียนเสร็จหมาดๆ"
             await autoSaveData(empId, true);
         } else {
             showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error");
         }
     }
 
-    // 🌟 รับค่า isJustRegistered เข้ามาตรวจสอบ 🌟
     async function autoSaveData(scannerId, isJustRegistered = false) {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
@@ -230,27 +282,24 @@
             });
             const result = await response.json();
 
-// 🌟 1. ดักกรณี QR หมดเวลาที่ตั้งไว้ (35 วินาที)
             if (result.expiredList && result.expiredList.length > 0) {
                 if (isJustRegistered) {
                     showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดเวลาสแกนแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
-                    setTimeout(() => closeApp(), 10000); // ให้เวลาอ่าน 10 วิ เพราะเพิ่งลงทะเบียนเสร็จ
+                    setTimeout(() => closeApp(), 10000);
                 } else {
                     showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลาแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                     setTimeout(() => closeApp(), 3000);
                 }
             } 
-            // 🌟 2. ดักกรณีเกินเวลาจนถูกระบบหลังบ้านลบทิ้ง
             else if (result.notFound && result.notFound.length > 0) {
                 if (isJustRegistered) {
                     showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดอายุและถูกยกเลิกแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
-                    setTimeout(() => closeApp(), 10000); // ปรับเป็น 10 วิ ให้เท่ากับข้างบน
+                    setTimeout(() => closeApp(), 10000);
                 } else {
                     showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                     setTimeout(() => closeApp(), 3000);
                 }
             } 
-            // 🌟 3. บันทึกสำเร็จ
             else if (result.success) {
                 if (isJustRegistered) {
                     showResult("ยืนยันตัวตน & บันทึกสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
@@ -259,18 +308,21 @@
                 }
                 setTimeout(() => closeApp(), 2500);
             } 
-            // 🌟 4. Error อื่นๆ
             else {
                 showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                 setTimeout(() => closeApp(), 3000);
             }
+        } catch (err) {
+            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+            setTimeout(() => closeApp(), 3000);
+        }
+    }
 
     function updateLoading(text) {
         document.getElementById('loadingTitle').innerText = text;
         document.getElementById('loadingDesc').innerText = "กรุณารอสักครู่ ห้ามปิดหน้าต่างนี้";
     }
 
-    // 🌟 ปรับปรุง showResult รับค่า status (success, warning, error) 🌟
     function showResult(title, desc, status) {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('registerScreen').style.display = 'none';
@@ -280,12 +332,10 @@
         document.getElementById('resultDesc').innerHTML = desc; 
         
         const icon = document.getElementById('resultIcon');
-        
         if (status === "success") {
             icon.className = "fa-solid fa-circle-check icon-large";
             icon.style.color = "var(--success)";
         } else if (status === "warning") {
-            // ไอคอนสีเหลืองเตือน สำหรับกรณีลงทะเบียนผ่านแต่สแกนไม่ทัน
             icon.className = "fa-solid fa-triangle-exclamation icon-large";
             icon.style.color = "var(--warning)";
         } else {
