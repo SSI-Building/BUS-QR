@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>BUS QR - Face Processor</title>
+    <title>BUS QR - Real AI Face Processor</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -36,7 +39,6 @@
         button:active { transform: scale(0.98); }
         .btn-primary { background: var(--primary); color: white; }
         
-        /* 🌟 กรอบวิดีโอ 🌟 */
         .video-container { 
             width: 100%; 
             aspect-ratio: 1; 
@@ -49,28 +51,22 @@
             border: 3px solid #334155;
             transition: border-color 0.3s;
         }
-        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         
-        /* 🌟 SVG OVERLAY 🌟 */
+        /* วิดีโอและ Canvas สำหรับวาดกรอบ AI */
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        canvas { z-index: 5; pointer-events: none; }
+        
         .face-svg-overlay {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 85%; height: 85%;
-            pointer-events: none;
-            z-index: 10;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; height: 85%; pointer-events: none; z-index: 10;
         }
 
-        /* 🌟 อนิเมชั่นเลเซอร์สแกน 🌟 */
-        .laser-line {
-            animation: scanLaser 1.5s infinite alternate ease-in-out;
-        }
+        .laser-line { animation: scanLaser 1.5s infinite alternate ease-in-out; }
         @keyframes scanLaser {
             0% { transform: translateY(-3px); }
             100% { transform: translateY(3px); }
         }
 
-        /* 🌟 เอฟเฟกต์แสงแฟลชตอนจับภาพอัตโนมัติ 🌟 */
         .flash-effect {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-color: white; opacity: 0; z-index: 20; pointer-events: none;
@@ -96,8 +92,8 @@
 </div>
 
 <div id="registerScreen" class="register-card">
-    <h1 style="font-size: 22px; font-weight: 800; color: var(--primary);">AI Face Verification</h1>
-    <p style="font-size: 13px; margin-bottom: 20px;">กรุณาใส่รหัสพนักงาน และสแกนใบหน้าเพื่อยืนยันสิทธิ(ครั้งแรกเท่านั้น)</p>
+    <h1 style="font-size: 22px; font-weight: 800; color: var(--primary);">Real AI Verification</h1>
+    <p style="font-size: 13px; margin-bottom: 20px;">ระบบจะจับภาพอัตโนมัติเมื่อพบใบหน้ามนุษย์</p>
     
     <div class="input-group">
         <input type="text" id="empIdInput" placeholder="รหัสพนักงาน (เช่น S0123)" autocomplete="off" inputmode="text">
@@ -105,36 +101,18 @@
 
     <div id="cameraArea" class="video-container">
         <video id="selfieVideo" playsinline autoplay muted></video>
+        <canvas id="overlayCanvas"></canvas>
         <div class="flash-effect" id="flashScreen"></div>
         
-            <svg class="face-svg-overlay"
-                 xmlns="http://www.w3.org/2000/svg"
-                 viewBox="0 0 24 24"
-                 fill="none"
-                 stroke="rgba(255,255,255,0.7)"
-                 stroke-width="0.8"
-                 stroke-linecap="round"
-                 stroke-linejoin="round">
-            
-              <path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"
-                    stroke="var(--primary)"
-                    stroke-width="1.2" />
-            
+            <svg class="face-svg-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3" stroke="var(--primary)" stroke-width="1.2" />
               <path d="M9 14.5a3 3 0 0 0 6 0V11a3 3 0 0 0-6 0v3.5z" />
               <path d="M7 10a5 5 0 0 1 10 0" />
-            
               <line x1="10.5" y1="11" x2="11" y2="11" stroke-width="1.5" />
               <line x1="13" y1="11" x2="13.5" y2="11" stroke-width="1.5" />
-            
               <path d="M12 11v1.5h.5" />
               <path d="M10.5 14.5a1.5 1.5 0 0 0 3 0" />
-            
-              <line class="laser-line"
-                    x1="2" y1="12"
-                    x2="22" y2="12"
-                    stroke="#ef4444"
-                    stroke-width="1.0"
-                    stroke-dasharray="1.5 1.5" />
+              <line class="laser-line" x1="2" y1="12" x2="22" y2="12" stroke="#ef4444" stroke-width="1.0" stroke-dasharray="1.5 1.5" />
             </svg>
     </div>
     
@@ -155,9 +133,13 @@
     const LIFF_ID = "2007956727-gZOxrA26"; 
     const API_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
     
+    // 🌟 URL ของโมเดล AI (ชี้ไปที่ CDN กลาง) 🌟
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
+    
     let scannedUUID = "";
     let lineProfile = null;
     let videoStream = null;
+    let faceDetectionInterval = null;
 
     window.onload = async () => { 
         try {
@@ -198,53 +180,83 @@
         }
     };
 
-    // 🌟 ระบบจับภาพอัตโนมัติ (Smart Auto-Capture Illusion) 🌟
+    // 🌟 ระบบจับภาพด้วย AI ของจริง 🌟
     async function startCameraSequence() {
         const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
         if (!empId) return alert("กรุณากรอกรหัสพนักงานให้เรียบร้อยก่อนเปิดกล้องครับ");
 
         try {
-            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
-            document.getElementById('selfieVideo').srcObject = videoStream;
-            
-            // ปรับ UI เปิดกล้อง
+            // ปรับ UI เตรียมโหลด
             document.getElementById('startCamBtn').style.display = 'none';
             document.getElementById('empIdInput').disabled = true;
             document.getElementById('cameraArea').style.display = 'block';
             
             const statusText = document.getElementById('scanStatusText');
             statusText.style.display = 'block';
-            statusText.innerText = "กำลังค้นหาใบหน้า...";
+            statusText.innerText = "กำลังดาวน์โหลด AI Model (รอสักครู่)...";
             statusText.style.color = "var(--warning)";
 
-            // ⏱️ หน่วงเวลาบิ๊วอารมณ์ 2 วินาที
-            setTimeout(() => {
-                statusText.innerText = "ตรวจพบใบหน้า... กรุณาอยู่นิ่งๆ";
-                statusText.style.color = "var(--primary)";
-                document.getElementById('cameraArea').style.borderColor = "var(--primary)";
-            }, 2000);
+            // 1. โหลดสมอง AI (ใช้ TinyFaceDetector เพราะเบาสุด)
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
 
-            // 📸 ยิงแฟลชและจับภาพอัตโนมัติในวินาทีที่ 3.5
-            setTimeout(() => {
-                statusText.innerText = "จับภาพสำเร็จ!";
-                statusText.style.color = "var(--success)";
-                document.getElementById('cameraArea').style.borderColor = "var(--success)";
-                
-                // สั่ง Flash หน้าจอ
-                document.getElementById('flashScreen').classList.add('flash-active');
-                
-                // สั่งถ่ายรูปส่งเข้าเซิร์ฟเวอร์
-                setTimeout(() => {
-                    executeCapture(empId);
-                }, 400); // รอแสงแฟลชหายแว้บนึงค่อยประมวลผล
-            }, 3500);
+            // 2. เปิดกล้อง
+            const video = document.getElementById('selfieVideo');
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
+            video.srcObject = videoStream;
+
+            statusText.innerText = "กำลังค้นหาใบหน้ามนุษย์...";
+            statusText.style.color = "var(--primary)";
+
+            // 3. เริ่มลูปค้นหาใบหน้าเมื่อวิดีโอเล่น
+            video.addEventListener('play', () => {
+                const canvas = document.getElementById('overlayCanvas');
+                const displaySize = { width: video.videoWidth || 300, height: video.videoHeight || 300 };
+                faceapi.matchDimensions(canvas, displaySize);
+
+                let faceFoundCount = 0; // ตัวนับว่าเจอหน้าต่อเนื่องกี่เฟรม (กันจับผิดพลาด)
+
+                faceDetectionInterval = setInterval(async () => {
+                    // ให้ AI ตรวจจับ
+                    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.6 }));
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    if (detection) {
+                        // เจอหน้ามนุษย์! 
+                        faceFoundCount++;
+                        
+                        // ถ้านับได้ 3 เฟรมติดกัน แปลว่าหน้าคนจริงๆ อยู่นิ่งแล้ว
+                        if (faceFoundCount >= 3) {
+                            clearInterval(faceDetectionInterval); // หยุดสแกน
+                            
+                            statusText.innerText = "AI ยืนยันใบหน้าสำเร็จ!";
+                            statusText.style.color = "var(--success)";
+                            document.getElementById('cameraArea').style.borderColor = "var(--success)";
+                            
+                            // สั่ง Flash หน้าจอ
+                            document.getElementById('flashScreen').classList.add('flash-active');
+                            
+                            // สั่งถ่ายรูปส่งเข้าเซิร์ฟเวอร์
+                            setTimeout(() => {
+                                executeCapture(empId);
+                            }, 400); 
+                        }
+                    } else {
+                        // ไม่เจอหน้า รีเซ็ตตัวนับ
+                        faceFoundCount = 0;
+                        document.getElementById('cameraArea').style.borderColor = "var(--danger)";
+                    }
+                }, 300); // สแกนทุกๆ 300 มิลลิวินาที (ประมาณ 3 ครั้งต่อวินาที)
+            });
 
         } catch (err) {
-            alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาตใช้งานกล้อง");
+            console.error(err);
+            alert("เกิดข้อผิดพลาดในการเปิดกล้อง หรือโหลด AI ไม่สำเร็จ");
         }
     }
 
-    // ฟังก์ชันถ่ายรูปตัวจริง (ถูกเรียกใช้อัตโนมัติ)
+    // ฟังก์ชันถ่ายรูปตัวจริง
     async function executeCapture(empId) {
         updateLoading("กำลังประมวลผลใบหน้า...");
         const video = document.getElementById('selfieVideo');
@@ -263,7 +275,7 @@
 
         document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('loadingScreen').style.display = 'flex';
-        updateLoading("กำลังยืนยันใบหน้าในระบบ...");
+        updateLoading("กำลังบันทึกข้อมูลใบหน้าลงระบบ...");
 
         const regRes = await fetch(API_URL, {
             method: "POST",
