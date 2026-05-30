@@ -419,8 +419,12 @@ async function loginLine() {
         const profile = await liff.getProfile();
         currentLineUserId = profile.userId;
 
+        // ดึงลิงก์รูปโปรไฟล์จาก LIFF
+        const profilePicUrl = profile.pictureUrl || ""; 
+        
+        // แนบส่งไปกับลิงก์
         const response = await fetch(
-            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}`
+            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}&pictureUrl=${encodeURIComponent(profilePicUrl)}`
         );
         const result = await response.json();
 
