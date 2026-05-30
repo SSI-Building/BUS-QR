@@ -190,8 +190,8 @@
         }
     }
 
-    // ==========================================
-    // ระบบบันทึกข้อมูลอัตโนมัติ (ส่งลิงก์รูปโปรไฟล์ LINE)
+// ==========================================
+    // ระบบบันทึกข้อมูลอัตโนมัติ (เพิ่มการดัก QR หมดอายุ/ถูกลบ)
     // ==========================================
     async function autoSaveData(scannerId) {
         try {
@@ -204,24 +204,33 @@
                     action: "saveData", 
                     uuidList: [scannedUUID], 
                     scannerId: scannerId, 
-                    pictureUrl: picUrl // 🌟 ส่งรูปลิงก์ LINE ไปเข้า Column G ในหน้า Report
+                    pictureUrl: picUrl // ส่งรูปลิงก์ LINE ไปเข้า Column G 
                 })
             });
             const result = await response.json();
 
+            // 🌟 1. ดักกรณีเกินเวลา 90 วินาที (ยังไม่ถูกลบ แต่หมดอายุ)
             if (result.expiredList && result.expiredList.length > 0) {
-                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดอายุไปแล้ว", false);
-            } else if (result.success) {
+                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว", false);
+            } 
+            // 🌟 2. ดักกรณีเกินเวลา 120 วินาที (ถูก Trigger หลังบ้านลบทิ้งไปแล้ว)
+            else if (result.notFound && result.notFound.length > 0) {
+                showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว", false);
+            } 
+            // 🌟 3. บันทึกสำเร็จ
+            else if (result.success) {
                 showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", true);
                 setTimeout(() => closeApp(), 2500);
-            } else {
+            } 
+            // 🌟 4. Error อื่นๆ
+            else {
                 showResult("สแกนไม่สำเร็จ", result.message || "เกิดข้อผิดพลาดบางอย่าง", false);
             }
         } catch (err) {
             showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้", false);
         }
     }
-
+    
     // ==========================================
     // UI Helpers
     // ==========================================
