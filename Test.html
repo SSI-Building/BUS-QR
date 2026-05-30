@@ -73,7 +73,26 @@
     let scanner;
     let scannedUUIDs = [];
 
-    window.onload = async () => { await startScanner(); };
+    window.onload = async () => { 
+        // 🌟 1. เช็คว่าผู้ใช้เปิดเว็บผ่านแอป LINE ใช่หรือไม่?
+        const isLineApp = /Line/i.test(navigator.userAgent);
+        
+        if (isLineApp) {
+            // ถ้าใช่ ให้หยุดการทำงานทุกอย่าง แล้วเตะส่งไปหน้า LIFF ทันที!
+            document.body.innerHTML = `<div style="height:100vh; display:flex; align-items:center; justify-content:center; color:white; background:#0f172a;">กำลังสลับไปยังระบบความปลอดภัย...</div>`;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const uuid = urlParams.get('id') || "";
+            const liffUrl = "https://liff.line.me/2007956727-gZOxrA26";
+            
+            // ถ้ามี id แนบมาด้วย ก็ห้อยท้ายไปให้ LIFF ด้วย
+            window.location.href = uuid ? `${liffUrl}?id=${uuid}` : liffUrl;
+            return; 
+        }
+
+        // 🌟 2. ถ้าเปิดผ่าน Chrome/Safari ทั่วไป ก็ลุยเปิดกล้องตามปกติเลย!
+        await startScanner(); 
+    };
 
     async function startScanner() {
         scanner = new Html5Qrcode("reader");
@@ -84,7 +103,8 @@
         try { await scanner.pause(); } catch(err) {}
 
         const raw = decodedText.trim();
-        const pattern = /^https:\/\/ssi-building\.github\.io\/BUS-QR\/Test\.html\?id=(.+)$/i;
+        // 🌟 ปรับตรงนี้นิดเดียว เพื่อให้มันรับได้ทั้งลิงก์ github และ liff
+        const pattern = /id=(.+)$/i;
         const match = raw.match(pattern);
 
         if (!match) {
@@ -112,7 +132,7 @@
         document.getElementById("scanCount").innerHTML = "สแกนแล้ว " + scannedUUIDs.length + " รายการ";
     }
 
-function processData() {
+    function processData() {
         if (scannedUUIDs.length === 0) { alert("ยังไม่มีข้อมูล"); return; }
         try { if(scanner) scanner.stop(); } catch(err) {}
 
@@ -161,7 +181,7 @@ function processData() {
         } catch(err) { return ""; }
     }
 
-async function sendData() {
+    async function sendData() {
         const scannerId = document.getElementById("scannerId").value.trim().toUpperCase();
         if (!scannerId) { alert("กรุณากรอกรหัสพนักงาน"); return; }
         localStorage.setItem("scannerId", scannerId);
