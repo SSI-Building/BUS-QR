@@ -455,7 +455,7 @@ async function loginLine() {
                     <span class="value">${data.colB}</span>
                 </div>
                 
-                <button class="qr-btn" onclick="createQR()">
+                <button id="createQrBtn" class="qr-btn" onclick="createQR()">
                     <i class="fa-solid fa-qrcode"></i> สร้าง QR Code
                 </button>
 
@@ -474,16 +474,21 @@ async function loginLine() {
 }
 
 // ========================================
-// CREATE QR
+// CREATE QR (ปรับปรุงระบบล็อคปุ่ม)
 // ========================================
 async function createQR() {
     try {
-        if (isQRActive) {
-            alert("QR Code กำลังทำงานอยู่");
-            return;
-        }
+        if (isQRActive) return; // ลบ alert ออก เพราะเราจะล็อคปุ่มแล้ว
 
         isQRActive = true;
+        
+        // 🌟 1. ล็อคปุ่มทันทีที่กด และเปลี่ยนข้อความ 🌟
+        const qrBtn = document.getElementById("createQrBtn");
+        if (qrBtn) {
+            qrBtn.disabled = true;
+            qrBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้าง QR...';
+        }
+
         clearAll();
 
         const response = await fetch(
@@ -494,7 +499,17 @@ async function createQR() {
         if (!result.success) {
             alert(result.message);
             isQRActive = false;
+            // 🌟 2. ปลดล็อคปุ่มถ้าสร้างไม่สำเร็จ (Error) 🌟
+            if (qrBtn) {
+                qrBtn.disabled = false;
+                qrBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> ลองสร้างใหม่อีกครั้ง';
+            }
             return;
+        }
+
+        // 🌟 3. สร้างสำเร็จแล้ว เปลี่ยนข้อความปุ่มให้รู้ว่ากำลังรอ 🌟
+        if (qrBtn) {
+            qrBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> กำลังใช้งาน QR Code...';
         }
         
         const currentUUID = result.uuid;
@@ -551,7 +566,11 @@ async function createQR() {
                             
                             clearAll(); 
                             
-                            // แสดงกล่องสำเร็จและเพิ่ม Text Input ทันที
+                            // เปลี่ยนข้อความปุ่มเมื่อบันทึกสำเร็จ (ยังล็อคไว้เหมือนเดิม)
+                            if (qrBtn) {
+                                qrBtn.innerHTML = '<i class="fa-solid fa-check"></i> บันทึกข้อมูลสำเร็จ';
+                            }
+                            
                             document.getElementById("countdownArea").innerHTML = `
                                 <div class="status-success-box">
                                     <i class="fa-solid fa-square-check" style="font-size: 18px;"></i> บันทึกข้อมูลเรียบร้อยแล้ว
@@ -588,6 +607,12 @@ async function createQR() {
                         </div>
                     `;
                     isQRActive = false;
+                    
+                    // 🌟 4. ปลดล็อคปุ่มให้กดใหม่ได้เมื่อ QR หมดอายุ 🌟
+                    if (qrBtn) {
+                        qrBtn.disabled = false;
+                        qrBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> สร้าง QR Code ใหม่อีกครั้ง';
+                    }
                 }
             }
         }, 1000);
@@ -596,6 +621,13 @@ async function createQR() {
         console.error(err);
         alert(err);
         isQRActive = false;
+        
+        // 🌟 5. ปลดล็อคปุ่มถ้าเกิด Error ตอนเชื่อมต่ออินเทอร์เน็ต 🌟
+        const qrBtn = document.getElementById("createQrBtn");
+        if (qrBtn) {
+            qrBtn.disabled = false;
+            qrBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> ลองสร้างใหม่อีกครั้ง';
+        }
     }
 }
 
