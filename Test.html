@@ -191,7 +191,7 @@
     }
 
 // ==========================================
-    // ระบบบันทึกข้อมูลอัตโนมัติ (เพิ่มการดัก QR หมดอายุ/ถูกลบ)
+    // ระบบบันทึกข้อมูลอัตโนมัติ (ปิดออโต้เมื่อหมดอายุ)
     // ==========================================
     async function autoSaveData(scannerId) {
         try {
@@ -209,25 +209,29 @@
             });
             const result = await response.json();
 
-            // 🌟 1. ดักกรณีเกินเวลา 90 วินาที (ยังไม่ถูกลบ แต่หมดอายุ)
+            // 🌟 1. ดักกรณีเกินเวลา 90 วินาที
             if (result.expiredList && result.expiredList.length > 0) {
-                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว", false);
+                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
+                setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
             } 
-            // 🌟 2. ดักกรณีเกินเวลา 120 วินาที (ถูก Trigger หลังบ้านลบทิ้งไปแล้ว)
+            // 🌟 2. ดักกรณีเกินเวลา 120 วินาที
             else if (result.notFound && result.notFound.length > 0) {
-                showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว", false);
+                showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
+                setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
             } 
             // 🌟 3. บันทึกสำเร็จ
             else if (result.success) {
                 showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", true);
-                setTimeout(() => closeApp(), 2500);
+                setTimeout(() => closeApp(), 2500); // รอ 2.5 วิแล้วปิด
             } 
             // 🌟 4. Error อื่นๆ
             else {
-                showResult("สแกนไม่สำเร็จ", result.message || "เกิดข้อผิดพลาดบางอย่าง", false);
+                showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", false);
+                setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
             }
         } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้", false);
+            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", false);
+            setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
         }
     }
     
@@ -244,7 +248,7 @@
         const resultScreen = document.getElementById('resultScreen');
         
         document.getElementById('resultTitle').innerText = title;
-        document.getElementById('resultDesc').innerText = desc;
+        document.getElementById('resultDesc').innerHTML = desc; // 🌟 เปลี่ยนเป็น innerHTML
         
         const icon = document.getElementById('resultIcon');
         if (isSuccess) {
