@@ -212,26 +212,26 @@
             // 🌟 1. ดักกรณีเกินเวลา 90 วินาที
             if (result.expiredList && result.expiredList.length > 0) {
                 showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
+                setTimeout(() => closeApp(), 2500); // 👈 เลข 3000 ตรงนี้คือ 3 วินาที
             } 
             // 🌟 2. ดักกรณีเกินเวลา 120 วินาที
             else if (result.notFound && result.notFound.length > 0) {
                 showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
+                setTimeout(() => closeApp(), 2500); // 👈 เลข 3000 ตรงนี้คือ 3 วินาที
             } 
             // 🌟 3. บันทึกสำเร็จ
             else if (result.success) {
                 showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", true);
-                setTimeout(() => closeApp(), 2500); // รอ 2.5 วิแล้วปิด
+                setTimeout(() => closeApp(), 2500); // 👈 เลข 2500 ตรงนี้คือ 2.5 วินาที
             } 
             // 🌟 4. Error อื่นๆ
             else {
                 showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
+                setTimeout(() => closeApp(), 2500); // 👈 เลข 3000 ตรงนี้คือ 3 วินาที
             }
         } catch (err) {
             showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-            setTimeout(() => closeApp(), 3000); // รอ 3 วิแล้วปิด
+            setTimeout(() => closeApp(), 2500); // รอ 3 วิแล้วปิด
         }
     }
     
