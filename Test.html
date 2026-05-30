@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -44,7 +45,7 @@
         .video-container { 
             width: 100%; 
             aspect-ratio: 1; 
-            border-radius: 50%; /* เปลี่ยนเป็นวงกลม */
+            border-radius: 50%; 
             overflow: hidden; 
             background: #0f172a; 
             margin-bottom: 20px; 
@@ -66,7 +67,6 @@
             opacity: 0.6;
             pointer-events: none;
         }
-
     </style>
 </head>
 
@@ -89,7 +89,7 @@
     </div>
 
     <div id="cameraArea" class="video-container">
-        <video id="selfieVideo" playsinline autoplay mute></video>
+        <video id="selfieVideo" playsinline autoplay muted></video>
         <div class="face-overlay"></div>
     </div>
     
@@ -124,7 +124,7 @@
             scannedUUID = urlParams.get('id');
 
             if (!scannedUUID) {
-                showResult("เกิดข้อผิดพลาด", "ไม่พบข้อมูล QR Code กรุณาสแกนใหม่", false);
+                showResult("เกิดข้อผิดพลาด", "ไม่พบข้อมูล QR Code กรุณาสแกนใหม่", "error");
                 return;
             }
 
@@ -135,7 +135,7 @@
             const verifyData = await verifyRes.json();
 
             if (verifyData.allowed === false) {
-                showResult("การเข้าถึงถูกปฏิเสธ", verifyData.message, false);
+                showResult("การเข้าถึงถูกปฏิเสธ", verifyData.message, "error");
                 return;
             }
 
@@ -144,20 +144,19 @@
 
             if (foremanData.registered === true) {
                 updateLoading("กำลังบันทึกข้อมูล...");
-                await autoSaveData(foremanData.scannerId);
+                await autoSaveData(foremanData.scannerId, false);
             } else {
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
             }
 
         } catch (error) {
-            showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", false);
+            showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", "error");
         }
     };
 
     async function startCamera() {
         try {
-            // ดึงกล้องหน้า
             videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
             const videoElement = document.getElementById('selfieVideo');
             videoElement.srcObject = videoStream;
@@ -174,20 +173,18 @@
         const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
         if (!empId) return alert("กรุณากรอกรหัสพนักงาน");
 
-        // ถ่ายภาพจาก Video
         updateLoading("กำลังประมวลผลใบหน้า...");
         const video = document.getElementById('selfieVideo');
         const canvas = document.createElement("canvas");
         const size = Math.min(video.videoWidth, video.videoHeight);
         canvas.width = size; 
         canvas.height = size;
-        // ครอปกลาง
         canvas.getContext("2d").drawImage(
             video, 
             (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 
             0, 0, size, size
         );
-        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.5); // บีบอัดภาพ
+        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.5); 
 
         videoStream.getTracks().forEach(track => track.stop());
 
@@ -210,13 +207,15 @@
         const regData = await regRes.json();
         
         if (regData.success) {
-            await autoSaveData(empId);
+            // 🌟 ส่งค่า true ไปบอกฟังก์ชันว่า "เพิ่งลงทะเบียนเสร็จหมาดๆ"
+            await autoSaveData(empId, true);
         } else {
-            showResult("ยืนยันใบหน้าล้มเหลว", regData.message, false);
+            showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error");
         }
     }
 
-    async function autoSaveData(scannerId) {
+    // 🌟 รับค่า isJustRegistered เข้ามาตรวจสอบ 🌟
+    async function autoSaveData(scannerId, isJustRegistered = false) {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
 
@@ -231,24 +230,42 @@
             });
             const result = await response.json();
 
+            // 1. ดักกรณีเกินเวลา 90 วินาที
             if (result.expiredList && result.expiredList.length > 0) {
-                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 3000);
+                if (isJustRegistered) {
+                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดเวลา 90 วินาทีแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
+                    setTimeout(() => closeApp(), 6000); // ให้เวลาอ่าน 6 วิ เพราะเพิ่งลงทะเบียนเสร็จ
+                } else {
+                    showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                    setTimeout(() => closeApp(), 3000);
+                }
             } 
+            // 2. ดักกรณีเกินเวลา 120 วินาที
             else if (result.notFound && result.notFound.length > 0) {
-                showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 3000);
+                if (isJustRegistered) {
+                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code ถูกลบเนื่องจากหมดเวลาแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
+                    setTimeout(() => closeApp(), 6000);
+                } else {
+                    showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                    setTimeout(() => closeApp(), 3000);
+                }
             } 
+            // 3. บันทึกสำเร็จ
             else if (result.success) {
-                showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", true);
+                if (isJustRegistered) {
+                    showResult("ยืนยันตัวตน & บันทึกสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
+                } else {
+                    showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
+                }
                 setTimeout(() => closeApp(), 2500);
             } 
+            // 4. Error อื่นๆ
             else {
-                showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", false);
+                showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                 setTimeout(() => closeApp(), 3000);
             }
         } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", false);
+            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
             setTimeout(() => closeApp(), 3000);
         }
     }
@@ -258,7 +275,8 @@
         document.getElementById('loadingDesc').innerText = "กรุณารอสักครู่ ห้ามปิดหน้าต่างนี้";
     }
 
-    function showResult(title, desc, isSuccess) {
+    // 🌟 ปรับปรุง showResult รับค่า status (success, warning, error) 🌟
+    function showResult(title, desc, status) {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('registerScreen').style.display = 'none';
         const resultScreen = document.getElementById('resultScreen');
@@ -267,15 +285,20 @@
         document.getElementById('resultDesc').innerHTML = desc; 
         
         const icon = document.getElementById('resultIcon');
-        if (isSuccess) {
+        
+        if (status === "success") {
             icon.className = "fa-solid fa-circle-check icon-large";
             icon.style.color = "var(--success)";
+        } else if (status === "warning") {
+            // ไอคอนสีเหลืองเตือน สำหรับกรณีลงทะเบียนผ่านแต่สแกนไม่ทัน
+            icon.className = "fa-solid fa-triangle-exclamation icon-large";
+            icon.style.color = "var(--warning)";
         } else {
             icon.className = "fa-solid fa-circle-xmark icon-large";
             icon.style.color = "var(--danger)";
         }
         
-        resultScreen.style.display = 'flex'; // เปลี่ยนเป็น flex เพื่อให้จัดกลางได้
+        resultScreen.style.display = 'flex'; 
     }
 
     function closeApp() {
