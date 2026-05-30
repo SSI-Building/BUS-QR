@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BUS QR - Auto Processor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BUS QR - Face Processor</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -12,62 +11,93 @@
     <style>
         :root {
             --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; 
-            --primary: #60a5fa; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+            --primary: #60a5fa; --primary-hover: #93c5fd; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
         }
         * { box-sizing: border-box; font-family: 'Prompt', sans-serif; -webkit-user-select: none; user-select: none; }
-        body { margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; overflow: hidden; padding: 20px;}
+        body { margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: -webkit-fill-available; flex-direction: column; overflow: hidden; padding: 20px;}
         
-        .container { text-align: center; width: 100%; max-width: 400px; }
-        .icon-large { font-size: 60px; margin-bottom: 20px; }
+        html { height: -webkit-fill-available; }
+
+        .container { text-align: center; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1;}
+        .icon-large { font-size: 70px; margin-bottom: 25px; }
         .spin { animation: spin 1.5s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         
-        h1 { font-size: 24px; margin: 0 0 10px 0; color: white; }
-        p { color: var(--muted); font-size: 15px; margin-bottom: 20px; line-height: 1.5; }
+        h1 { font-size: 26px; margin: 0 0 12px 0; color: white; font-weight: 700; letter-spacing: -0.5px;}
+        p { color: var(--muted); font-size: 16px; margin: 0 0 25px 0; line-height: 1.6; }
         
-        /* สไตล์สำหรับหน้าลงทะเบียน */
-        .register-card { background: var(--card); border-radius: 20px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; display: none; width: 100%; max-width: 360px; border: 1px solid #334155;}
-        .input-group { margin-bottom: 20px; text-align: left; }
-        .input-group label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; font-weight: 600; }
-        input[type="text"] { width: 100%; padding: 14px; border-radius: 12px; border: none; background: #0f172a; color: white; font-size: 16px; outline: none; border: 1px solid #334155;}
-        input[type="text"]:focus { border-color: var(--primary); }
+        /* สไตล์สำหรับหน้าสแกนใบหน้า */
+        .register-card { background: var(--card); border-radius: 28px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center; display: none; width: 100%; max-width: 360px; border: 1px solid #334155;}
         
-        button { width: 100%; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;}
+        .input-group { margin-bottom: 25px; text-align: left; }
+        .input-group label { display: block; color: var(--muted); font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+        input[type="text"] { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #0f172a; color: white; font-size: 16px; outline: none; border: 1px solid #334155;}
+        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2); }
+        
+        button { width: 100%; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s;}
+        button:active { transform: scale(0.98); }
         .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
         .btn-success { background: var(--success); color: white; }
         
-        .video-container { width: 100%; aspect-ratio: 1; border-radius: 16px; overflow: hidden; background: #0f172a; margin-bottom: 15px; display: none; position: relative; border: 2px dashed #475569;}
+        /* 🌟 กรอบกล้องและ OVERLAY สแกนใบหน้า 🌟 */
+        .video-container { 
+            width: 100%; 
+            aspect-ratio: 1; 
+            border-radius: 50%; /* เปลี่ยนเป็นวงกลม */
+            overflow: hidden; 
+            background: #0f172a; 
+            margin-bottom: 20px; 
+            display: none; 
+            position: relative; 
+            border: 4px solid var(--primary);
+            box-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
+        }
         video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        
+        /* 🌟 เส้นเป้าหมายรูปใบหน้า (Face Overlay) 🌟 */
+        .face-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="%2360a5fa" stroke-width="1.5" stroke-dasharray="3 3"><path d="M50 15c-15 0-25 10-25 25 0 10 5 20 10 25s10 10 15 10c15 0 25-10 25-25 0-15-10-25-25-25zM50 75v10M35 70s-5 8 0 12h30s5-4 0-12"/></svg>');
+            background-size: 60%;
+            background-position: center 40%;
+            background-repeat: no-repeat;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
     </style>
 </head>
 
 <body>
 
 <div id="loadingScreen" class="container">
-    <i class="fa-solid fa-circle-notch icon-large spin" style="color: var(--primary);"></i>
+    <i class="fa-solid fa-face-viewfinder icon-large spin" style="color: var(--primary);"></i>
     <h1 id="loadingTitle">กำลังประมวลผล...</h1>
-    <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูล</p>
+    <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูลใบหน้า</p>
 </div>
 
 <div id="registerScreen" class="register-card">
-    <i class="fa-solid fa-id-badge" style="font-size: 40px; color: var(--warning); margin-bottom: 15px;"></i>
-    <h1 style="font-size: 20px;">ลงทะเบียนหัวหน้างาน</h1>
-    <p style="font-size: 13px;">ระบบต้องการข้อมูลและภาพถ่ายเพื่อยืนยันตัวตนในครั้งแรกเท่านั้น</p>
+    <i class="fa-solid fa-face-viewfinder" style="font-size: 45px; color: var(--warning); margin-bottom: 15px;"></i>
+    <h1 style="font-size: 22px; font-weight: 800;">ยืนยันใบหน้า</h1>
+    <p style="font-size: 14px; margin-bottom: 20px;">เพื่อความปลอดภัยของระบบ กรุณาสแกนใบหน้าและกรอกรหัสพนักงานในครั้งแรกเท่านั้น</p>
     
     <div class="input-group">
-        <label>รหัสพนักงานของคุณ</label>
-        <input type="text" id="empIdInput" placeholder="เช่น K0123" autocomplete="off">
+        <label>รหัสพนักงานผู้สแกน</label>
+        <input type="text" id="empIdInput" placeholder="เช่น K0123" autocomplete="off" inputmode="text">
     </div>
 
     <div id="cameraArea" class="video-container">
-        <video id="selfieVideo" playsinline autoplay></video>
+        <video id="selfieVideo" playsinline autoplay mute></video>
+        <div class="face-overlay"></div>
     </div>
     
     <button id="startCamBtn" class="btn-primary" onclick="startCamera()">
-        <i class="fa-solid fa-camera"></i> เปิดกล้องเพื่อถ่ายภาพ
+        <i class="fa-solid fa-camera"></i> เปิดกล้องสแกนใบหน้า
     </button>
     <button id="captureBtn" class="btn-success" onclick="captureAndRegister()" style="display: none;">
-        <i class="fa-solid fa-camera-retro"></i> ถ่ายภาพและลงทะเบียน
+        <i class="fa-solid fa-expand"></i> ถ่ายภาพและยืนยัน
     </button>
 </div>
 
@@ -90,7 +120,6 @@
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) { liff.login(); return; }
 
-            // 1. ดึง UUID จาก URL ที่สแกนมา
             const urlParams = new URLSearchParams(window.location.search);
             scannedUUID = urlParams.get('id');
 
@@ -101,8 +130,7 @@
 
             lineProfile = await liff.getProfile();
 
-            // 2. เช็คสิทธิ์และประวัติหัวหน้างานรวดเดียว
-            updateLoading("กำลังตรวจสอบสิทธิ์...");
+            updateLoading("กำลังตรวจสอบสิทธิ์ใบหน้า...");
             const verifyRes = await fetch(`${API_URL}?action=verifyScanner&scannerLineId=${lineProfile.userId}`);
             const verifyData = await verifyRes.json();
 
@@ -111,16 +139,13 @@
                 return;
             }
 
-            // 3. เช็คว่าหัวหน้าเคยลงทะเบียนหรือยัง (พร้อมแนบเวลาเพื่อเลี่ยง Cache)
             const checkRes = await fetch(`${API_URL}?action=checkForeman&lineUserId=${lineProfile.userId}&t=${Date.now()}`);
             const foremanData = await checkRes.json();
 
             if (foremanData.registered === true) {
-                // 🟢 เคยลงทะเบียนแล้ว -> บันทึกข้อมูลอัตโนมัติเลย (Super Lazy Mode!)
                 updateLoading("กำลังบันทึกข้อมูล...");
                 await autoSaveData(foremanData.scannerId);
             } else {
-                // 🔴 ยังไม่เคยลงทะเบียน -> โชว์หน้าลงทะเบียน
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
             }
@@ -130,12 +155,10 @@
         }
     };
 
-    // ==========================================
-    // ระบบถ่ายภาพลงทะเบียน
-    // ==========================================
     async function startCamera() {
         try {
-            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+            // ดึงกล้องหน้า
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
             const videoElement = document.getElementById('selfieVideo');
             videoElement.srcObject = videoStream;
             
@@ -143,7 +166,7 @@
             document.getElementById('startCamBtn').style.display = 'none';
             document.getElementById('captureBtn').style.display = 'flex';
         } catch (err) {
-            alert("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้อง");
+            alert("ไม่สามารถเปิดกล้องสแกนได้ กรุณาอนุญาตการเข้าถึงกล้อง");
         }
     }
 
@@ -152,22 +175,26 @@
         if (!empId) return alert("กรุณากรอกรหัสพนักงาน");
 
         // ถ่ายภาพจาก Video
+        updateLoading("กำลังประมวลผลใบหน้า...");
         const video = document.getElementById('selfieVideo');
         const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth; 
-        canvas.height = video.videoHeight;
-        canvas.getContext("2d").drawImage(video, 0, 0);
-        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.4); // บีบอัดให้เล็กลง
+        const size = Math.min(video.videoWidth, video.videoHeight);
+        canvas.width = size; 
+        canvas.height = size;
+        // ครอปกลาง
+        canvas.getContext("2d").drawImage(
+            video, 
+            (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 
+            0, 0, size, size
+        );
+        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.5); // บีบอัดภาพ
 
-        // ปิดกล้อง
         videoStream.getTracks().forEach(track => track.stop());
 
-        // สลับไปหน้าจอโหลด
         document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('loadingScreen').style.display = 'flex';
-        updateLoading("กำลังลงทะเบียนและบันทึกข้อมูล...");
+        updateLoading("กำลังยืนยันใบหน้าในระบบ...");
 
-        // ยิง API ไปลงทะเบียน (รูปภาพจะบันทึกเข้าหน้าชีต foreman เท่านั้น)
         const regRes = await fetch(API_URL, {
             method: "POST",
             body: JSON.stringify({ 
@@ -183,19 +210,14 @@
         const regData = await regRes.json();
         
         if (regData.success) {
-            // ลงทะเบียนเสร็จปุ๊บ สั่งเซฟ QR ทันที
             await autoSaveData(empId);
         } else {
-            showResult("ลงทะเบียนล้มเหลว", regData.message, false);
+            showResult("ยืนยันใบหน้าล้มเหลว", regData.message, false);
         }
     }
 
-// ==========================================
-    // ระบบบันทึกข้อมูลอัตโนมัติ (ปิดออโต้เมื่อหมดอายุ)
-    // ==========================================
     async function autoSaveData(scannerId) {
         try {
-            // ดึงรูปลิงก์จาก LINE หากไม่มีรูปภาพให้ส่งค่าว่าง
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
 
             const response = await fetch(API_URL, {
@@ -204,42 +226,36 @@
                     action: "saveData", 
                     uuidList: [scannedUUID], 
                     scannerId: scannerId, 
-                    pictureUrl: picUrl // ส่งรูปลิงก์ LINE ไปเข้า Column G 
+                    pictureUrl: picUrl 
                 })
             });
             const result = await response.json();
 
-            // 🌟 1. ดักกรณีเกินเวลา 90 วินาที
             if (result.expiredList && result.expiredList.length > 0) {
                 showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 2500); // 👈 เลข 3000 ตรงนี้คือ 3 วินาที
+                setTimeout(() => closeApp(), 3000);
             } 
-            // 🌟 2. ดักกรณีเกินเวลา 120 วินาที
             else if (result.notFound && result.notFound.length > 0) {
                 showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 2500); // 👈 เลข 3000 ตรงนี้คือ 3 วินาที
+                setTimeout(() => closeApp(), 3000);
             } 
-            // 🌟 3. บันทึกสำเร็จ
             else if (result.success) {
                 showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", true);
-                setTimeout(() => closeApp(), 2500); // 👈 เลข 2500 ตรงนี้คือ 2.5 วินาที
+                setTimeout(() => closeApp(), 2500);
             } 
-            // 🌟 4. Error อื่นๆ
             else {
                 showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-                setTimeout(() => closeApp(), 2500); // 👈 เลข 3000 ตรงนี้คือ 3 วินาที
+                setTimeout(() => closeApp(), 3000);
             }
         } catch (err) {
             showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", false);
-            setTimeout(() => closeApp(), 2500); // รอ 3 วิแล้วปิด
+            setTimeout(() => closeApp(), 3000);
         }
     }
-    
-    // ==========================================
-    // UI Helpers
-    // ==========================================
+
     function updateLoading(text) {
         document.getElementById('loadingTitle').innerText = text;
+        document.getElementById('loadingDesc').innerText = "กรุณารอสักครู่ ห้ามปิดหน้าต่างนี้";
     }
 
     function showResult(title, desc, isSuccess) {
@@ -248,7 +264,7 @@
         const resultScreen = document.getElementById('resultScreen');
         
         document.getElementById('resultTitle').innerText = title;
-        document.getElementById('resultDesc').innerHTML = desc; // 🌟 เปลี่ยนเป็น innerHTML
+        document.getElementById('resultDesc').innerHTML = desc; 
         
         const icon = document.getElementById('resultIcon');
         if (isSuccess) {
@@ -259,7 +275,7 @@
             icon.style.color = "var(--danger)";
         }
         
-        resultScreen.style.display = 'block';
+        resultScreen.style.display = 'flex'; // เปลี่ยนเป็น flex เพื่อให้จัดกลางได้
     }
 
     function closeApp() {
