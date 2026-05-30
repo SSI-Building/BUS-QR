@@ -173,7 +173,7 @@
             }
 
             lineProfile = await liff.getProfile();
-            updateLoading("กำลังตรวจสอบสิทธิ์ใบหน้า...");
+            updateLoading("กำลังตรวจสอบสิทธิ...");
             
             const verifyRes = await fetch(`${API_URL}?action=verifyScanner&scannerLineId=${lineProfile.userId}`);
             const verifyData = await verifyRes.json();
