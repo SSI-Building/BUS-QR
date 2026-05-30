@@ -230,27 +230,27 @@
             });
             const result = await response.json();
 
-            // 1. ดักกรณีเกินเวลา 90 วินาที
+// 🌟 1. ดักกรณี QR หมดเวลาที่ตั้งไว้ (35 วินาที)
             if (result.expiredList && result.expiredList.length > 0) {
                 if (isJustRegistered) {
-                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดเวลา 90 วินาทีแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
-                    setTimeout(() => closeApp(), 6000); // ให้เวลาอ่าน 6 วิ เพราะเพิ่งลงทะเบียนเสร็จ
+                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดเวลาสแกนแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
+                    setTimeout(() => closeApp(), 10000); // ให้เวลาอ่าน 10 วิ เพราะเพิ่งลงทะเบียนเสร็จ
                 } else {
-                    showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลา 90 วินาทีแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                    showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลาแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                     setTimeout(() => closeApp(), 3000);
                 }
             } 
-            // 2. ดักกรณีเกินเวลา 120 วินาที
+            // 🌟 2. ดักกรณีเกินเวลาจนถูกระบบหลังบ้านลบทิ้ง
             else if (result.notFound && result.notFound.length > 0) {
                 if (isJustRegistered) {
-                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code ถูกลบเนื่องจากหมดเวลาแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
-                    setTimeout(() => closeApp(), 6000);
+                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดอายุและถูกยกเลิกแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
+                    setTimeout(() => closeApp(), 10000); // ปรับเป็น 10 วิ ให้เท่ากับข้างบน
                 } else {
-                    showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                    showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                     setTimeout(() => closeApp(), 3000);
                 }
             } 
-            // 3. บันทึกสำเร็จ
+            // 🌟 3. บันทึกสำเร็จ
             else if (result.success) {
                 if (isJustRegistered) {
                     showResult("ยืนยันตัวตน & บันทึกสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
@@ -259,16 +259,11 @@
                 }
                 setTimeout(() => closeApp(), 2500);
             } 
-            // 4. Error อื่นๆ
+            // 🌟 4. Error อื่นๆ
             else {
                 showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                 setTimeout(() => closeApp(), 3000);
             }
-        } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
-            setTimeout(() => closeApp(), 3000);
-        }
-    }
 
     function updateLoading(text) {
         document.getElementById('loadingTitle').innerText = text;
