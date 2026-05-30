@@ -204,7 +204,7 @@
             videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
             video.srcObject = videoStream;
 
-            statusText.innerText = "กำลังค้นหาใบหน้ามนุษย์...";
+            statusText.innerText = "AI กำลังวิเคราะห์โครงหน้า...";
             statusText.style.color = "var(--primary)";
 
             // 3. เริ่มลูปค้นหาใบหน้าเมื่อวิดีโอเล่น
