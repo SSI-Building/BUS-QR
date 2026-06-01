@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Liveness Check Prototype</title>
+    
+    <!-- โหลด face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b101e;
+            --primary: #00E676; /* สีเขียวสำเร็จ */
+            --primary-glow: rgba(0, 230, 118, 0.4);
+            --scanning: #4dabf7; /* สีฟ้าตอนกำลังสแกน */
+            --scanning-glow: rgba(77, 171, 247, 0.4);
+            --error: #ef4444; /* สีแดงตอนไม่เจอหน้า */
+            --text-main: #ffffff;
+            --text-muted: #8b9bb4;
+        }
+
+        body {
+            margin: 0; background-color: var(--bg-color); display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; font-family: -apple-system, sans-serif; color: var(--text-main);
+        }
+
+        .verification-container {
+            display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 400px; padding: 20px;
+        }
+
+        /* ข้อความสถานะ */
+        .status-header { text-align: center; margin-bottom: 25px; height: 60px; }
+        .status-title { font-size: 20px; font-weight: 600; margin: 0 0 8px 0; transition: color 0.3s; }
+        .status-subtitle { font-size: 14px; color: var(--text-muted); margin: 0; transition: color 0.3s; }
+
+        /* กรอบกล้องวงกลม */
+        .camera-wrapper {
+            position: relative; width: 280px; height: 280px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* วงแหวนโหลด */
+        .progress-ring {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: rotate(-90deg); z-index: 10;
+        }
+        .ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 6; }
+        .ring-active {
+            fill: none; stroke: var(--error); stroke-width: 6; stroke-linecap: round;
+            stroke-dasharray: 879; stroke-dashoffset: 879; transition: stroke-dashoffset 0.5s linear, stroke 0.3s;
+        }
+
+        /* กล้องจริง */
+        .video-mask {
+            width: 260px; height: 260px; border-radius: 50%; overflow: hidden; position: relative;
+            background: #1c263a; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); z-index: 5;
+        }
+        video, canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+        }
+        canvas { z-index: 6; } /* ให้วาดกรอบ AI ทับวิดีโอ */
+
+        /* แสงสแกนเนอร์ */
+        .scan-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(77,171,247,0) 0%, rgba(77,171,247,0.5) 50%, rgba(77,171,247,0) 100%);
+            background-size: 100% 200%; opacity: 0; z-index: 7; transition: opacity 0.3s;
+        }
+        .is-scanning .scan-overlay { opacity: 1; animation: scanMove 2s infinite linear; }
+
+        /* กล่องข้อมูล (Fake Data) */
+        .analysis-data {
+            margin-top: 30px; width: 100%; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px; padding: 15px; box-sizing: border-box; font-family: monospace; font-size: 12px; color: var(--text-muted);
+        }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .data-row:last-child { margin-bottom: 0; }
+        .val { font-weight: 600; color: var(--text-main); }
+        .val.success { color: var(--primary); }
+
+        /* ปุ่มเริ่ม */
+        button {
+            margin-top: 20px; padding: 12px 24px; border: none; border-radius: 8px; background: var(--primary);
+            color: #000; font-weight: bold; cursor: pointer; font-size: 16px;
+        }
+        button:disabled { background: #555; color: #888; cursor: not-allowed; }
+
+        @keyframes scanMove { 0% { background-position: 0 -100%; } 100% { background-position: 0 200%; } }
+    </style>
+</head>
+<body>
+
+    <div class="verification-container">
+        
+        <div class="status-header">
+            <h1 class="status-title" id="statusTitle">System Ready</h1>
+            <p class="status-subtitle" id="statusSub">Press start to load AI model</p>
+        </div>
+
+        <div class="camera-wrapper" id="cameraWrapper">
+            <svg class="progress-ring" viewBox="0 0 280 280">
+                <circle class="ring-bg" cx="140" cy="140" r="137"></circle>
+                <!-- วงแหวนนี้จะเปลี่ยนสีและวิ่งด้วย JS -->
+                <circle class="ring-active" id="progressRing" cx="140" cy="140" r="137"></circle>
+            </svg>
+
+            <div class="video-mask" id="videoMask">
+                <video id="video" playsinline autoplay muted></video>
+                <canvas id="overlay"></canvas>
+                <div class="scan-overlay"></div>
+            </div>
+        </div>
+
+        <div class="analysis-data">
+            <div class="data-row"><span>AI_MODEL</span> <span class="val" id="logModel">WAITING</span></div>
+            <div class="data-row"><span>FACE_DETECTED</span> <span class="val" id="logFace">FALSE</span></div>
+            <div class="data-row"><span>LIVENESS_SCORE</span> <span class="val" id="logScore">0%</span></div>
+        </div>
+
+        <button id="startBtn" onclick="initApp()">Start Camera & AI</button>
+    </div>
+
+    <script>
+        const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('overlay');
+        const ring = document.getElementById('progressRing');
+        const title = document.getElementById('statusTitle');
+        const sub = document.getElementById('statusSub');
+        const btn = document.getElementById('startBtn');
+        const videoMask = document.getElementById('videoMask');
+
+        let scanInterval;
+        let progress = 0; // 0 ถึง 100
+        const MAX_RING_OFFSET = 879; 
+
+        async function initApp() {
+            btn.disabled = true;
+            btn.innerText = "Loading AI...";
+            
+            try {
+                // 1. โหลด AI
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                document.getElementById('logModel').innerText = "LOADED";
+                document.getElementById('logModel').classList.add('success');
+
+                // 2. เปิดกล้อง
+                btn.innerText = "Opening Camera...";
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+
+                // 3. เริ่มลูปสแกนเมื่อวิดีโอเล่น
+                video.addEventListener('play', () => {
+                    btn.style.display = 'none';
+                    faceapi.matchDimensions(canvas, { width: video.clientWidth, height: video.clientHeight });
+                    startScanning();
+                });
+
+            } catch (err) {
+                alert("Error: " + err.message);
+                btn.innerText = "Failed";
+            }
+        }
+
+        function startScanning() {
+            title.innerText = "Liveness Check";
+            title.style.color = "var(--text-main)";
+
+            scanInterval = setInterval(async () => {
+                // ให้ AI หาใบหน้า
+                const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.5 }));
+
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (detection) {
+                    // --- เจอหน้า ---
+                    videoMask.classList.add('is-scanning'); // เปิดเอฟเฟกต์เลเซอร์
+                    document.getElementById('logFace').innerText = "TRUE";
+                    document.getElementById('logFace').classList.add('success');
+                    
+                    sub.innerText = "Hold still, analyzing biometrics...";
+                    ring.style.stroke = "var(--scanning)"; // วงแหวนสีฟ้า
+
+                    // วาดกรอบสี่เหลี่ยมบางๆ ให้ดูเป็น Tech
+                    const dims = faceapi.matchDimensions(canvas, video, true);
+                    const resized = faceapi.resizeResults(detection, dims);
+                    const box = resized.box;
+                    ctx.strokeStyle = "rgba(77, 171, 247, 0.8)";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+                    // เพิ่มเกจ Progress
+                    progress += 4; // ใช้เวลาประมาณ 2.5 วินาทีถึงจะเต็ม 100
+                    if (progress >= 100) progress = 100;
+                    
+                    document.getElementById('logScore').innerText = progress + "%";
+
+                    // อัปเดตวงแหวน (แปลง % เป็นวงแหวน)
+                    const offset = MAX_RING_OFFSET - (MAX_RING_OFFSET * (progress / 100));
+                    ring.style.strokeDashoffset = offset;
+
+                    // ถ้ายืนยันสำเร็จ (Progress 100%)
+                    if (progress === 100) {
+                        verificationSuccess();
+                    }
+
+                } else {
+                    // --- ไม่เจอหน้า หรือหน้าหลุดเฟรม ---
+                    videoMask.classList.remove('is-scanning');
+                    document.getElementById('logFace').innerText = "FALSE";
+                    document.getElementById('logFace').classList.remove('success');
+
+                    sub.innerText = "Please position your face within the frame";
+                    ring.style.stroke = "var(--error)"; // วงแหวนสีแดง
+                    
+                    // ลดเกจลง (กันคนเอารูปมาบังแวบเดียว)
+                    progress -= 10; 
+                    if (progress < 0) progress = 0;
+                    
+                    document.getElementById('logScore').innerText = progress + "%";
+                    const offset = MAX_RING_OFFSET - (MAX_RING_OFFSET * (progress / 100));
+                    ring.style.strokeDashoffset = offset;
+                }
+            }, 100); // เช็คทุกๆ 100 ms
+        }
+
+        function verificationSuccess() {
+            clearInterval(scanInterval); // หยุดสแกน
+            videoMask.classList.remove('is-scanning'); // ปิดเลเซอร์
+            
+            // อัปเดต UI เป็นสำเร็จ
+            title.innerText = "Verification Passed";
+            title.style.color = "var(--primary)";
+            sub.innerText = "Identity successfully confirmed.";
+            
+            ring.style.stroke = "var(--primary)";
+            ring.style.strokeDasharray = "879";
+            ring.style.strokeDashoffset = "0";
+            ring.style.filter = "drop-shadow(0 0 15px var(--primary-glow))";
+
+            document.getElementById('logScore').innerText = "99.9% (SECURE)";
+            document.getElementById('logScore').classList.add('success');
+
+            // วาดกรอบสีเขียวทิ้งไว้
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = "rgba(0, 230, 118, 0.8)";
+            ctx.setLineDash([]);
+        }
+    </script>
+</body>
+</html>
