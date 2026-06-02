@@ -454,7 +454,7 @@ function updateThemeIcon(theme) {
 // ฟังก์ชันดึงข้อมูลจากระบบ
 async function loadData() {
     const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = `<tr><td colspan="7"><div class="loading-state"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>กำลังดึงข้อมูลสดจากระบบหลังบ้าน...</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="loading-state"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>กำลังโหลดข้อมูล...</div></td></tr>`;
 
     try {
         const response = await fetch(`${SCRIPT_URL}?action=getDashboardData`);
