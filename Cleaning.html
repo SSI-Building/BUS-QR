@@ -309,6 +309,21 @@ button:disabled {
     font-size: 14px;
 }
 
+.warning-box {
+    background: #fef2f2;
+    padding: 10px 14px;
+    border-radius: 12px;
+    color: var(--danger);
+    margin-top: 8px;
+    font-weight: 600;
+    border: 1px solid #fecaca;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
 /* เพิ่มเติม: สำหรับ Input เหตุผลและปุ่ม */
 .reason-input {
     width: 100%;
@@ -478,11 +493,10 @@ async function loginLine() {
 // ========================================
 async function createQR() {
     try {
-        if (isQRActive) return; // ลบ alert ออก เพราะเราจะล็อคปุ่มแล้ว
+        if (isQRActive) return;
 
         isQRActive = true;
         
-        // 🌟 1. ล็อคปุ่มทันทีที่กด และเปลี่ยนข้อความ 🌟
         const qrBtn = document.getElementById("createQrBtn");
         if (qrBtn) {
             qrBtn.disabled = true;
@@ -499,7 +513,6 @@ async function createQR() {
         if (!result.success) {
             alert(result.message);
             isQRActive = false;
-            // 🌟 2. ปลดล็อคปุ่มถ้าสร้างไม่สำเร็จ (Error) 🌟
             if (qrBtn) {
                 qrBtn.disabled = false;
                 qrBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> ลองสร้างใหม่อีกครั้ง';
@@ -507,7 +520,6 @@ async function createQR() {
             return;
         }
 
-        // 🌟 3. สร้างสำเร็จแล้ว เปลี่ยนข้อความปุ่มให้รู้ว่ากำลังรอ 🌟
         if (qrBtn) {
             qrBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> กำลังใช้งาน QR Code...';
         }
@@ -566,15 +578,38 @@ async function createQR() {
                             
                             clearAll(); 
                             
-                            // เปลี่ยนข้อความปุ่มเมื่อบันทึกสำเร็จ (ยังล็อคไว้เหมือนเดิม)
                             if (qrBtn) {
                                 qrBtn.innerHTML = '<i class="fa-solid fa-check"></i> บันทึกข้อมูลสำเร็จ';
+                            }
+                            
+                            // 🌟 คำนวณเช็คสายหรือออกก่อนเวลาตรงนี้ 🌟
+                            const scanTime = new Date();
+                            const timeStr = String(scanTime.getHours()).padStart(2, '0') + ":" + String(scanTime.getMinutes()).padStart(2, '0');
+                            let warningHtml = "";
+
+                            if (timeStr < "12:00") {
+                                // สแกนเช้า เช็คสาย
+                                if (timeStr > "08:45") {
+                                    warningHtml = `
+                                    <div class="warning-box">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> คุณเข้างานสาย (หลัง 08:45 น.)
+                                    </div>`;
+                                }
+                            } else {
+                                // สแกนบ่าย เช็คออกก่อน
+                                if (timeStr < "16:30") {
+                                    warningHtml = `
+                                    <div class="warning-box">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> คุณออกก่อนเวลา (ก่อน 16:30 น.)
+                                    </div>`;
+                                }
                             }
                             
                             document.getElementById("countdownArea").innerHTML = `
                                 <div class="status-success-box">
                                     <i class="fa-solid fa-square-check" style="font-size: 18px;"></i> บันทึกข้อมูลเรียบร้อยแล้ว
                                 </div>
+                                ${warningHtml}
                                 <input type="text" id="reasonInput" class="reason-input" placeholder="ระบุเหตุผล หรือรายละเอียดเพิ่มเติม..." oninput="toggleSaveButton()">
                                 <div class="btn-group">
                                     <button id="saveReasonBtn" class="save-btn" onclick="submitReason('${currentUUID}')">
@@ -608,7 +643,6 @@ async function createQR() {
                     `;
                     isQRActive = false;
                     
-                    // 🌟 4. ปลดล็อคปุ่มให้กดใหม่ได้เมื่อ QR หมดอายุ 🌟
                     if (qrBtn) {
                         qrBtn.disabled = false;
                         qrBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> สร้าง QR Code ใหม่อีกครั้ง';
@@ -622,7 +656,6 @@ async function createQR() {
         alert(err);
         isQRActive = false;
         
-        // 🌟 5. ปลดล็อคปุ่มถ้าเกิด Error ตอนเชื่อมต่ออินเทอร์เน็ต 🌟
         const qrBtn = document.getElementById("createQrBtn");
         if (qrBtn) {
             qrBtn.disabled = false;
