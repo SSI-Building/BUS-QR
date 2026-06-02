@@ -582,13 +582,13 @@ async function createQR() {
                                 qrBtn.innerHTML = '<i class="fa-solid fa-check"></i> บันทึกข้อมูลสำเร็จ';
                             }
                             
-                            // 🌟 คำนวณเช็คสายหรือออกก่อนเวลาตรงนี้ 🌟
+                            // 🌟 คำนวณเช็คสายหรือออกก่อนเวลาตรงนี้ (อัปเดต: เวลาทำงาน 08:00 - 16:30 น.) 🌟
                             const scanTime = new Date();
                             const timeStr = String(scanTime.getHours()).padStart(2, '0') + ":" + String(scanTime.getMinutes()).padStart(2, '0');
                             let warningHtml = "";
-
+                            
                             if (timeStr < "12:00") {
-                                // สแกนเช้า เช็คสาย
+                                // 1. สแกนช่วงเช้า: เช็คเข้างานสาย (เกณฑ์คือหลัง 08:45 น.)
                                 if (timeStr > "08:45") {
                                     warningHtml = `
                                     <div class="warning-box">
@@ -596,13 +596,16 @@ async function createQR() {
                                     </div>`;
                                 }
                             } else {
-                                // สแกนบ่าย เช็คออกก่อน
+                                // 2. สแกนช่วงหลังเที่ยงเป็นต้นไป
+                                // จะเตือน "ออกก่อนเวลา" เฉพาะคนที่สแกนในช่วง 12:00 ถึงก่อน 16:30 น. เท่านั้น
                                 if (timeStr < "16:30") {
                                     warningHtml = `
                                     <div class="warning-box">
                                         <i class="fa-solid fa-triangle-exclamation"></i> คุณออกก่อนเวลา (ก่อน 16:30 น.)
                                     </div>`;
                                 }
+                                // สแกนตั้งแต่ 16:30 น. เป็นต้นไป (รวมถึงหลัง 17:00 น. ที่เป็นช่วง OT) 
+                                // ตัวแปร warningHtml จะเป็นค่าว่าง ปลอดภัย ไม่มีกล่องเตือนสีแดงกวนใจพนักงานครับ
                             }
                             
                             document.getElementById("countdownArea").innerHTML = `
