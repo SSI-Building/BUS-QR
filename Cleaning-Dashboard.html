@@ -283,6 +283,11 @@ function clearDateFilter() {
 function processAndRenderData(rawData, filterDate) {
     const tbody = document.getElementById("tableBody");
     const grouped = {};
+    
+    // ดึงเวลาปัจจุบันเพื่อเช็คเงื่อนไข
+    const now = new Date();
+    const todayStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     rawData.forEach(row => {
         if (!row.scanTime || row.scanTime === "ยังไม่สแกน" || String(row.scanTime).trim() === "") return; 
@@ -351,12 +356,25 @@ function processAndRenderData(rawData, filterDate) {
             let statusArr = [];
             
             if (!isOT) {
-                if (sIn && !sOut) statusArr.push('<span class="status-badge bg-warning">ไม่บันทึกเวลาออก</span>');
+                // เช็คสถานะไม่บันทึกเวลาออก
+                if (sIn && !sOut) {
+                    // หากเป็นวันที่ปัจจุบัน และเวลายังไม่ถึง 16:25 จะยังไม่ขึ้นสถานะนี้
+                    if (group.dateOnly === todayStr && currentTimeStr < "16:25") {
+                        // ยังไม่ต้องแสดงอะไร
+                    } else {
+                        statusArr.push('<span class="status-badge bg-warning">ไม่บันทึกเวลาออก</span>');
+                    }
+                }
+                
                 if (!sIn && sOut) statusArr.push('<span class="status-badge bg-warning">ไม่บันทึกเวลาเข้า</span>');
                 
-                if (sIn && sIn.timeStr > "08:30") statusArr.push('<span class="status-badge bg-danger">เข้างานสาย</span>');
+                // เข้างานสาย: มากกว่า 08:45
+                if (sIn && sIn.timeStr > "08:45") statusArr.push('<span class="status-badge bg-danger">เข้างานสาย</span>');
+                
+                // ออกก่อนเวลา: ก่อน 16:30
                 if (sOut && sOut.timeStr < "16:30") statusArr.push('<span class="status-badge bg-danger">ออกก่อนเวลา</span>');
                 
+                // ปกติ
                 if (sIn && sOut && statusArr.length === 0) {
                     statusArr.push('<span class="status-badge bg-success">ปกติ</span>');
                 }
@@ -393,19 +411,16 @@ function processAndRenderData(rawData, filterDate) {
 
     let html = "";
     
-    // 🌟🌟 ปรับแต่งการดึงรูปหัวหน้าตรงนี้ 🌟🌟
     const buildScanCell = (scan) => {
         if (!scan) return `<span style="color:#cbd5e1;">-</span>`;
         
         let imgHtml = "";
         if (scan.imageUrl) {
-            // ถ้ารูปมาจาก Google Drive (ระบบเก่า / เซลฟี่เดิม)
             if (scan.imageUrl.includes("id=")) {
                 const fileId = scan.imageUrl.split("id=")[1].split("&")[0];
                 const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w100`;
                 imgHtml = `<img src="${thumbnailUrl}" onclick="window.open('${scan.imageUrl}', '_blank')" title="คลิกเพื่อดูรูปเต็ม">`;
             } 
-            // ถ้ารูปมาจาก LINE (ระบบใหม่)
             else if (scan.imageUrl.startsWith("http")) {
                 imgHtml = `<img src="${scan.imageUrl}" onclick="window.open('${scan.imageUrl}', '_blank')" title="คลิกเพื่อดูรูปโปรไฟล์หัวหน้า">`;
             }
