@@ -639,7 +639,8 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
         }
     });
 
-    countTotal = new Set(rawData.map(r => r.empId)).size; 
+    // นับจำนวนพนักงานจากข้อมูลที่ถูกกรองวันที่และคำค้นหาเรียบร้อยแล้ว (grouped)
+    countTotal = new Set(Object.values(grouped).map(g => g.empId)).size;
     
     document.getElementById("totalEmp").innerText = countTotal;
     document.getElementById("lateEmp").innerText = countLate;
