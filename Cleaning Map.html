@@ -1,0 +1,345 @@
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Map-WasteCheck (UI Only - Hidden Info)</title>
+<link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+<style>
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+/* =========================================================
+   MAP MARKERS / LABELS
+   ========================================================= */
+.custom-text-label {
+    background-color: #fff; color: #333; padding: 0 6px; border-radius: 5px;
+    font-size: 12px; font-weight: bold; white-space: nowrap; pointer-events: none;
+    margin: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.red-dot-marker, .yellow-dot-marker, .green-dot-marker {
+    width: 10px; height: 10px; border-radius: 100%; border: 1px solid white;
+    pointer-events: auto; box-shadow: 0 0 1px rgba(0,0,0,0.5);
+}
+.red-dot-marker { background-color: #FF0000; }
+.yellow-dot-marker { background-color: #FFD700; }
+.green-dot-marker { background-color: #00FF00; }
+
+/* =========================================================
+   MAP INFORMATION PANEL (ถูกซ่อนไว้)
+   ========================================================= */
+#bearing-info, #zoom-info, #distance-info {
+    position: absolute; padding: 5px 10px; background: rgba(255,255,255,0.9);
+    border: 1px solid #333; border-radius: 6px; font-size: 14px;
+    font-weight: bold; z-index: 1;
+}
+#bearing-info { top: 10px; left: 10px; }
+#zoom-info { top: 10px; right: 10px; }
+#distance-info { bottom: 10px; left: 10px; white-space: pre-line; }
+
+/* =========================================================
+   MAP CONTROL BUTTONS
+   ========================================================= */
+.maplibregl-ctrl-group > button, .maplibregl-ctrl-group > .maplibregl-ctrl-icon,
+.maplibregl-ctrl-group > .reset-button, .maplibregl-ctrl-group > .toggle-table-button {
+    width: 28px; height: 28px; margin: 2px; padding: 0; display: flex;
+    align-items: center; justify-content: center; cursor: pointer;
+    background: #fff; border: 1px solid rgba(0,0,0,0.12); border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+.maplibregl-ctrl-group > button:hover, .maplibregl-ctrl-group > .reset-button:hover,
+.maplibregl-ctrl-group > .toggle-table-button:hover {
+    background: #f0f0f0; transform: scale(1.04);
+}
+.reset-button span { font-size: 16px; line-height: 1; display: inline-block; transform: translateY(-1px); }
+.toggle-table-button.active { background-color: #333 !important; color: white; }
+.toggle-table-button.active:hover { background-color: #555 !important; }
+
+/* =========================================================
+   DATA TABLE WINDOW
+   ========================================================= */
+#data-table-container {
+    position: absolute; top: 5px; left: 5px; width: 320px; display: none;
+    flex-direction: column; overflow: hidden; z-index: 10;
+    background: rgba(255,255,255,0.95); border: 1px solid #777;
+    border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+#window-header {
+    background-color: #333; color: white; padding: 2px 5px; display: flex;
+    align-items: center; justify-content: space-between; cursor: move;
+    font-size: 11px; font-weight: bold; line-height: 0.8; flex-shrink: 0;
+}
+#window-header .control-buttons button {
+    width: 30px; height: 25px; display: flex; align-items: center;
+    justify-content: center; cursor: pointer; background: none; color: white;
+    border: none; border-radius: 3px; font-size: 11px; line-height: 1;
+}
+#window-header .control-buttons button:hover { background-color: rgba(255,255,255,0.2); }
+#window-header #close-window-btn:hover { background-color: #e74c3c; }
+
+#data-table-wrapper { padding: 5px; max-height: 850px; overflow-y: auto; overflow-x: hidden; }
+#data-table-wrapper::-webkit-scrollbar { width: 8px; }
+#data-table-wrapper::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+#data-table-wrapper::-webkit-scrollbar-thumb { background: #999; border-radius: 10px; }
+#data-table-wrapper::-webkit-scrollbar-thumb:hover { background: #666; }
+
+#data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+#data-table th, #data-table td { padding: 6px 10px; text-align: left; line-height: 0.9; border: 1px solid #ddd; }
+#data-table th { background-color: #f2f2f2; color: #333; font-weight: bold; }
+#data-table thead th { position: sticky; top: 0; z-index: 2; background: #f2f2f2; }
+#data-table tbody tr:hover { background: #f5faff; cursor: pointer; }
+
+/* =========================================================
+   ADD LOCATION FORM
+   ========================================================= */
+#add-location-form-container {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 260px; padding: 15px; display: none; z-index: 20;
+    background: rgba(255,255,255,0.95); border: 1px solid #777;
+    border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+#add-location-form-container h3 { margin: 0 0 10px 0; text-align: center; font-size: 14px; }
+#add-location-form input, #add-location-form select {
+    width: 100%; padding: 5px 6px; margin-bottom: 8px; font-size: 12px;
+    border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+}
+#add-location-form button {
+    width: 48%; padding: 5px; margin-right: 4%; cursor: pointer;
+    border: none; border-radius: 4px; font-size: 12px;
+}
+#add-location-form button:last-child { margin-right: 0; }
+#add-location-form .cancel-btn { background-color: #e74c3c; color: white; }
+
+/* =========================================================
+   LOADING OVERLAY & ANIMATION
+   ========================================================= */
+#loading-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none;
+    z-index: 9999; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+    color: white; font-size: 18px; font-weight: bold; flex-direction: column;
+    align-items: center; justify-content: center;
+}
+.loader {
+    width: 70px; aspect-ratio: 1; position: relative;
+    background: radial-gradient(farthest-side,#ffa516 90%,#0000) center/16px 16px,
+                radial-gradient(farthest-side,green 90%,#0000) bottom/12px 12px;
+    background-repeat: no-repeat; animation: l17 1s infinite linear;
+}
+.loader::before {
+    content: ""; position: absolute; width: 8px; aspect-ratio: 1;
+    inset: auto 0 16px; margin: auto; background: #ff0000; border-radius: 50%;
+    transform-origin: 50% calc(100% + 10px); animation: inherit; animation-duration: 0.5s;
+}
+@keyframes l17 { 100% { transform: rotate(1turn); } }
+.loading-text { margin-top: 10px; animation: blink 1s infinite; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+
+
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="bearing-info" style="display:none;">Bearing: -45.60°</div>
+<div id="zoom-info" style="display:none;">Zoom: 15.65</div>
+<div id="distance-info" style="display:none;">พิกัด: 99.535692, 11.231666</div>
+
+<div id="data-table-container">
+  <div id="window-header">
+    <span>ตารางข้อมูลพื้นที่</span>
+    <div class="control-buttons">
+      <button id="close-window-btn" title="ปิดตาราง"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
+  <div id="data-table-wrapper">
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>พื้นที่</th>
+            </tr>
+        </thead>
+      <tbody>
+          </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="add-location-form-container">
+  <h3>ทดสอบปักหมุด (UI)</h3>
+  <form id="add-location-form">
+      <input type="text" id="new-name" placeholder="พื้นที่" required>
+      <input type="number" step="0.000001" id="new-lat" placeholder="ละติจูด (Lat)" required>
+      <input type="number" step="0.000001" id="new-lng" placeholder="ลองติจูด (Lng)" required>
+      <select id="new-label-pos">
+          <option value="top">Top</option>
+          <option value="right">Right</option>
+          <option value="bottom">Bottom</option>
+          <option value="left">Left</option>
+      </select>
+      <div style="display:flex; justify-content:space-between; margin-top:5px;">
+        <button type="button" class="review-btn" id="preview-btn" style="background-color:#3498db;color:white;border:none;padding:5px 8px;border-radius:4px;">
+            <i class="fas fa-eye"></i> รีวิว
+        </button>
+        <button type="button" id="clear-preview-btn" style="background-color:#e74c3c;color:white;border:none;padding:5px 8px;border-radius:4px;">
+            <i class="fas fa-trash"></i>
+        </button>
+        <button type="button" class="cancel-btn" id="close-add-location-btn">ยกเลิก</button>
+    </div>
+  </form>
+</div>
+
+<div id="datepicker-container" style="position: absolute; top: 9px; right: 50px; z-index: 50; background: white; padding: 6px 10px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-family: sans-serif;">
+    <input type="date" id="datePicker">
+</div>
+
+<div id="loading-overlay">
+    <div class="loader"></div>
+    <div class="loading-text">กำลังโหลดข้อมูล...</div>
+</div>
+
+
+
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+<script>
+
+// 1. ตั้งวันที่ DatePicker เป็นวันปัจจุบัน
+const datePicker = document.getElementById('datePicker');
+const today = new Date();
+const yyyy = today.getFullYear();
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const dd = String(today.getDate()).padStart(2, '0');
+datePicker.value = `${yyyy}-${mm}-${dd}`;
+
+// 2. ตั้งค่าพิกัดแผนที่
+const targetLngLat = [99.535692, 11.231666];
+const desiredOffsetSouth = 0.0010;
+const desiredOffsetWest  = -0.0010;
+const initialBearing = -45.6;
+const initialZoom = 15.58;
+const initialPitch = 0;
+
+const map = new maplibregl.Map({
+    container:'map',
+    style:{version:8,sources:{satellite:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256}},layers:[{id:'satellite',type:'raster',source:'satellite'}]},
+    center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth],
+    zoom:initialZoom,
+    bearing:initialBearing,
+    pitch:initialPitch,
+    maxZoom:17.39
+});
+
+// 3. จัดการ Info Panel (โค้ดอัปเดตยังอยู่เหมือนเดิม เพื่อป้องกัน Error แต่หน้าจอจะมองไม่เห็น)
+const bearingInfo = document.getElementById('bearing-info');
+const zoomInfo = document.getElementById('zoom-info');
+const distanceInfo = document.getElementById('distance-info');
+
+function updateBearing(){ bearingInfo.innerText=`Bearing: ${map.getBearing().toFixed(2)}°`; }
+function updateZoom(){ zoomInfo.innerText=`Zoom: ${map.getZoom().toFixed(2)}`; }
+function updateDistances(){
+    const bottom=[targetLngLat[0], targetLngLat[1]-0.01];
+    const left=[targetLngLat[0]-0.01, targetLngLat[1]];
+    distanceInfo.innerText=`พิกัด: ${targetLngLat[0]}, ${targetLngLat[1]}\nระยะไปขอบล่าง: ${turf.distance(turf.point(targetLngLat),turf.point(bottom)).toFixed(3)} km\nระยะไปขอบซ้าย: ${turf.distance(turf.point(targetLngLat),turf.point(left)).toFixed(3)} km`;
+}
+map.on('move', ()=>{ updateBearing(); updateZoom(); updateDistances(); });
+
+// 4. สร้างปุ่ม Custom Controls
+class ResetControl { 
+    onAdd(map){
+        this.map=map; this.container=document.createElement('div'); this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; 
+        const btn=document.createElement('button'); btn.className='reset-button'; btn.type='button'; btn.title='รีเซ็ตมุมมองแผนที่'; btn.innerHTML='<span>⟳</span>'; 
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            this.map.easeTo({ center:[targetLngLat[0]-desiredOffsetWest,targetLngLat[1]-desiredOffsetSouth], zoom:initialZoom, bearing:initialBearing, pitch:initialPitch, duration:800 });
+        });
+        this.container.appendChild(btn); return this.container;
+    } 
+    onRemove(){} 
+}
+
+class ToggleTableControl { 
+    onAdd(map){
+        this.map=map; this.container=document.createElement('div'); this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; 
+        this.btn=document.createElement('button'); this.btn.className='toggle-table-button'; this.btn.type='button'; this.btn.title='แสดง/ซ่อนตารางข้อมูล'; this.btn.innerHTML='<i class="fas fa-table"></i>'; 
+        this.btn.addEventListener('click',e=>{
+            e.stopPropagation(); 
+            const container=document.getElementById('data-table-container'); 
+            if(container.style.display==='none'||container.style.display===''){ 
+                container.style.display='flex'; this.btn.classList.add('active'); this.btn.title='ซ่อนตารางข้อมูล'; 
+            } else { 
+                container.style.display='none'; this.btn.classList.remove('active'); this.btn.title='แสดงตารางข้อมูล'; 
+            } 
+        }); 
+        this.container.appendChild(this.btn); return this.container;
+    } 
+    onRemove(){} 
+}
+
+class AddLocationControl { 
+    onAdd(map){
+        this.map=map; this.container=document.createElement('div'); this.container.className='maplibregl-ctrl maplibregl-ctrl-group'; 
+        this.btn=document.createElement('button'); this.btn.className='add-location-button'; this.btn.type='button'; this.btn.title='ทดสอบปักหมุด'; this.btn.innerHTML='<i class="fas fa-map-pin"></i>'; 
+        this.btn.addEventListener('click',e=>{ e.stopPropagation(); document.getElementById('add-location-form-container').style.display='block'; }); 
+        this.container.appendChild(this.btn); return this.container;
+    } 
+    onRemove(){} 
+}
+
+map.on('load',()=>{
+    map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+    map.addControl(new ResetControl(),'bottom-right');
+    map.addControl(new ToggleTableControl(),'bottom-right');
+    map.addControl(new AddLocationControl(),'top-right');
+    updateBearing(); updateZoom(); updateDistances();
+});
+
+// 5. ระบบลากหน้าต่าง
+const tableContainer = document.getElementById('data-table-container');
+const windowHeader = document.getElementById('window-header');
+dragElement(windowHeader, tableContainer);
+
+document.getElementById('close-window-btn').onclick = ()=>{ tableContainer.style.display='none'; document.querySelector('.toggle-table-button').classList.remove('active'); }
+
+const addContainer = document.getElementById('add-location-form-container');
+const addHeader = addContainer.querySelector('h3');
+dragElement(addHeader, addContainer);
+
+function dragElement(elmnt, container){
+    elmnt.onmousedown = function(e){
+        e.preventDefault();
+        let pos3=e.clientX,pos4=e.clientY;
+        document.onmouseup=closeDragElement;
+        document.onmousemove=elementDrag;
+        function elementDrag(e){
+            e.preventDefault();
+            let pos1=pos3-e.clientX,pos2=pos4-e.clientY;
+            pos3=e.clientX; pos4=e.clientY;
+            container.style.top=(container.offsetTop-pos2)+'px';
+            container.style.left=(container.offsetLeft-pos1)+'px';
+        }
+        function closeDragElement(){document.onmouseup=null;document.onmousemove=null;}
+    }
+}
+
+// 6. การจัดการปุ่มในหน้าต่างฟอร์ม (แค่เปิด-ปิด ไม่ปักหมุดจริง)
+document.getElementById('add-location-form').onsubmit = function(e){
+    e.preventDefault();
+    document.getElementById('add-location-form-container').style.display='none';
+}
+
+document.getElementById('close-add-location-btn').onclick = ()=>{ addContainer.style.display='none'; }
+document.getElementById('preview-btn').onclick = ()=>{ alert('กดปุ่มรีวิว (ยังไม่ได้เชื่อมระบบ)'); }
+document.getElementById('clear-preview-btn').onclick = ()=>{ alert('กดปุ่มเคลียร์พรีวิว'); }
+
+
+
+</script>
+</body>
+</html>
