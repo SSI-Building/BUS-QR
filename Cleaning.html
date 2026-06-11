@@ -582,13 +582,14 @@ async function createQR() {
                                 qrBtn.innerHTML = '<i class="fa-solid fa-check"></i> บันทึกข้อมูลสำเร็จ';
                             }
                             
-                            // 🌟 คำนวณเช็คสายหรือออกก่อนเวลาตรงนี้ (อัปเดต: เวลาทำงาน 08:00 - 16:30 น.) 🌟
+                            // 🌟 ส่วนลอจิกเช็คเวลาเลิกงานวันเสาร์ที่อัปเดต (ตัดปีกกาตัวที่เกินออกแล้ว)
                             const scanTime = new Date();
+                            const currentDay = scanTime.getDay(); // 0 = อาทิตย์, 1 = จันทร์, ..., 6 = เสาร์
                             const timeStr = String(scanTime.getHours()).padStart(2, '0') + ":" + String(scanTime.getMinutes()).padStart(2, '0');
                             let warningHtml = "";
                             
                             if (timeStr < "12:00") {
-                                // 1. สแกนช่วงเช้า: เช็คเข้างานสาย (เกณฑ์คือหลัง 08:45 น.)
+                                // 1. สแกนช่วงเช้า: เช็คเข้างานสาย (เกณฑ์เดิม หลัง 08:45 น.)
                                 if (timeStr > "08:45") {
                                     warningHtml = `
                                     <div class="warning-box">
@@ -596,18 +597,18 @@ async function createQR() {
                                     </div>`;
                                 }
                             } else {
-                                // 2. สแกนช่วงหลังเที่ยงเป็นต้นไป
-                                // จะเตือน "ออกก่อนเวลา" เฉพาะคนที่สแกนในช่วง 12:00 ถึงก่อน 16:30 น. เท่านั้น
-                                if (timeStr < "16:30") {
+                                // 2. สแกนช่วงหลังเที่ยง: เช็คเวลาเลิกงานแยกวัน
+                                // ถ้าเป็นวันเสาร์ (6) ใช้เกณฑ์ 15:30 น. วันอื่น ๆ ใช้เกณฑ์ 16:30 น.
+                                const checkoutTarget = (currentDay === 6) ? "15:30" : "16:30";
+                            
+                                if (timeStr < checkoutTarget) {
                                     warningHtml = `
                                     <div class="warning-box">
-                                        <i class="fa-solid fa-triangle-exclamation"></i> คุณออกก่อนเวลา (ก่อน 16:30 น.)
+                                        <i class="fa-solid fa-triangle-exclamation"></i> คุณออกก่อนเวลา (ก่อน ${checkoutTarget} น.)
                                     </div>`;
                                 }
-                                // สแกนตั้งแต่ 16:30 น. เป็นต้นไป (รวมถึงหลัง 17:00 น. ที่เป็นช่วง OT) 
-                                // ตัวแปร warningHtml จะเป็นค่าว่าง ปลอดภัย ไม่มีกล่องเตือนสีแดงกวนใจพนักงานครับ
                             }
-                            
+
                             document.getElementById("countdownArea").innerHTML = `
                                 <div class="status-success-box">
                                     <i class="fa-solid fa-square-check" style="font-size: 18px;"></i> บันทึกข้อมูลเรียบร้อยแล้ว
