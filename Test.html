@@ -91,6 +91,23 @@
     <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูล</p>
 </div>
 
+<!-- 🌟 ส่วนที่เพิ่มเข้ามาใหม่: หน้าจอให้กดเลือก JSA 🌟 -->
+<div id="jsaScreen" class="register-card" style="display: none;">
+    <i class="fa-solid fa-clipboard-list icon-large" style="color: var(--warning); font-size: 60px;"></i>
+    <h1 style="font-size: 22px; font-weight: 800; color: white;">การชี้แจง JSA</h1>
+    <p style="font-size: 14px; color: var(--muted); margin-bottom: 25px;">
+        กรุณายืนยันว่าคุณได้ทำการชี้แจง Job Safety Analysis ให้กับพนักงานก่อนเริ่มปฏิบัติงานแล้วหรือไม่?
+    </p>
+    
+    <button class="btn-primary" style="background: var(--success); margin-bottom: 12px; height: 55px;" onclick="submitJsa('ยืนยันว่าได้ชี้แจง JSA แล้ว')">
+        <i class="fa-solid fa-check-double"></i> ยืนยันว่าได้ชี้แจง JSA แล้ว
+    </button>
+    
+    <button class="btn-primary" style="background: var(--danger); height: 55px;" onclick="submitJsa('ไม่ได้ชี้แจ้ง JSA')">
+        <i class="fa-solid fa-xmark"></i> ไม่ได้ชี้แจง JSA
+    </button>
+</div>
+
 <div id="registerScreen" class="register-card">
     <h1 style="font-size: 22px; font-weight: 800; color: var(--primary);">AI Face Verification</h1>
     
@@ -149,13 +166,16 @@
     const LIFF_ID = "2007956727-gZOxrA26"; 
     const API_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
     
-    // 🌟 URL ของโมเดล AI (ชี้ไปที่ CDN กลาง) 🌟
     const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
     
     let scannedUUID = "";
     let lineProfile = null;
     let videoStream = null;
     let faceDetectionInterval = null;
+    
+    // ตัวแปรสำหรับเก็บค่าชั่วคราวก่อนกดปุ่ม JSA
+    let tempScannerId = "";
+    let tempIsJustRegistered = false;
 
     window.onload = async () => { 
         try {
@@ -185,8 +205,8 @@
             const foremanData = await checkRes.json();
 
             if (foremanData.registered === true) {
-                updateLoading("กำลังบันทึกข้อมูล...");
-                await autoSaveData(foremanData.scannerId, false);
+                // 🌟 เปลี่ยนจากการ autoSave ทันที เป็นให้แสดงหน้า JSA ก่อน 🌟
+                showJsaScreen(foremanData.scannerId, false);
             } else {
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
@@ -196,13 +216,30 @@
         }
     };
 
-    // 🌟 ระบบจับภาพด้วย AI ของจริง 🌟
+    // 🌟 ฟังก์ชันแสดงหน้าต่างถาม JSA 🌟
+    function showJsaScreen(scannerId, isJustRegistered) {
+        tempScannerId = scannerId;
+        tempIsJustRegistered = isJustRegistered;
+        
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('jsaScreen').style.display = 'block';
+    }
+
+    // 🌟 เมื่อกดปุ่มใดปุ่มหนึ่งจากหน้า JSA จะส่งข้อความนั้นไปบันทึก 🌟
+    async function submitJsa(jsaText) {
+        document.getElementById('jsaScreen').style.display = 'none';
+        document.getElementById('loadingScreen').style.display = 'flex';
+        updateLoading("กำลังบันทึกข้อมูล...");
+        
+        await autoSaveData(tempScannerId, tempIsJustRegistered, jsaText);
+    }
+
     async function startCameraSequence() {
         const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
         if (!empId) return alert("กรุณากรอกรหัสพนักงานให้เรียบร้อยก่อนเปิดกล้องครับ");
 
         try {
-            // ปรับ UI เตรียมโหลด
             document.getElementById('startCamBtn').style.display = 'none';
             document.getElementById('empIdInput').disabled = true;
             document.getElementById('cameraArea').style.display = 'block';
@@ -212,10 +249,8 @@
             statusText.innerText = "กำลังดาวน์โหลด AI Model (รอสักครู่)...";
             statusText.style.color = "var(--warning)";
 
-            // 1. โหลดสมอง AI (ใช้ TinyFaceDetector เพราะเบาสุด)
             await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
 
-            // 2. เปิดกล้อง
             const video = document.getElementById('selfieVideo');
             videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
             video.srcObject = videoStream;
@@ -223,47 +258,40 @@
             statusText.innerText = "AI กำลังวิเคราะห์โครงหน้า...";
             statusText.style.color = "var(--primary)";
 
-            // 3. เริ่มลูปค้นหาใบหน้าเมื่อวิดีโอเล่น
             video.addEventListener('play', () => {
                 const canvas = document.getElementById('overlayCanvas');
                 const displaySize = { width: video.videoWidth || 300, height: video.videoHeight || 300 };
                 faceapi.matchDimensions(canvas, displaySize);
 
-                let faceFoundCount = 0; // ตัวนับว่าเจอหน้าต่อเนื่องกี่เฟรม (กันจับผิดพลาด)
+                let faceFoundCount = 0; 
 
                 faceDetectionInterval = setInterval(async () => {
-                    // ให้ AI ตรวจจับ
                     const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.6 }));
                     
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                     if (detection) {
-                        // เจอหน้ามนุษย์! 
                         faceFoundCount++;
                         
-                        // ถ้านับได้ 3 เฟรมติดกัน แปลว่าหน้าคนจริงๆ อยู่นิ่งแล้ว
                         if (faceFoundCount >= 3) {
-                            clearInterval(faceDetectionInterval); // หยุดสแกน
+                            clearInterval(faceDetectionInterval); 
                             
                             statusText.innerText = "AI ยืนยันใบหน้าสำเร็จ!";
                             statusText.style.color = "var(--success)";
                             document.getElementById('cameraArea').style.borderColor = "var(--success)";
                             
-                            // สั่ง Flash หน้าจอ
                             document.getElementById('flashScreen').classList.add('flash-active');
                             
-                            // สั่งถ่ายรูปส่งเข้าเซิร์ฟเวอร์
                             setTimeout(() => {
                                 executeCapture(empId);
                             }, 400); 
                         }
                     } else {
-                        // ไม่เจอหน้า รีเซ็ตตัวนับ
                         faceFoundCount = 0;
                         document.getElementById('cameraArea').style.borderColor = "var(--danger)";
                     }
-                }, 300); // สแกนทุกๆ 300 มิลลิวินาที (ประมาณ 3 ครั้งต่อวินาที)
+                }, 300); 
             });
 
         } catch (err) {
@@ -272,7 +300,6 @@
         }
     }
 
-    // ฟังก์ชันถ่ายรูปตัวจริง
     async function executeCapture(empId) {
         updateLoading("กำลังประมวลผลใบหน้า...");
         const video = document.getElementById('selfieVideo');
@@ -308,13 +335,15 @@
         const regData = await regRes.json();
         
         if (regData.success) {
-            await autoSaveData(empId, true);
+            // 🌟 เปลี่ยนจากการ autoSave ทันที เป็นให้แสดงหน้า JSA ก่อน 🌟
+            showJsaScreen(empId, true);
         } else {
             showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error");
         }
     }
 
-    async function autoSaveData(scannerId, isJustRegistered = false) {
+    // 🌟 เพิ่มพารามิเตอร์ jsaStatus มารับค่าไปส่งให้ Apps Script 🌟
+    async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "") {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
 
@@ -324,7 +353,8 @@
                     action: "saveData", 
                     uuidList: [scannedUUID], 
                     scannerId: scannerId, 
-                    pictureUrl: picUrl 
+                    pictureUrl: picUrl,
+                    jsaStatus: jsaStatus // 👈 ส่งค่าตัวแปรไปยัง Apps Script 
                 })
             });
             const result = await response.json();
@@ -373,6 +403,8 @@
     function showResult(title, desc, status) {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('jsaScreen').style.display = 'none'; // ซ่อนหน้า JSA เผื่อไว้ด้วย
+        
         const resultScreen = document.getElementById('resultScreen');
         
         document.getElementById('resultTitle').innerText = title;
