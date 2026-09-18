@@ -178,6 +178,7 @@
     let tempScannerId = "";
     let tempIsJustRegistered = false;
 
+
     window.onload = async () => { 
         try {
             await liff.init({ liffId: LIFF_ID });
@@ -194,19 +195,17 @@
             lineProfile = await liff.getProfile();
             updateLoading("กำลังตรวจสอบสิทธิ์...");
             
-            const verifyRes = await fetch(`${API_URL}?action=verifyScanner&scannerLineId=${lineProfile.userId}`);
-            const verifyData = await verifyRes.json();
+            // 🔥 ยิง API แค่ครั้งเดียว (ลดคอขวด) ได้ข้อมูลครบ
+            const res = await fetch(`${API_URL}?action=initScanner&scannerLineId=${lineProfile.userId}&t=${Date.now()}`);
+            const data = await res.json();
 
-            if (verifyData.allowed === false) {
-                showResult("การเข้าถึงถูกปฏิเสธ", verifyData.message, "error");
+            if (data.allowed === false) {
+                showResult("การเข้าถึงถูกปฏิเสธ", data.message, "error");
                 return;
             }
 
-            const checkRes = await fetch(`${API_URL}?action=checkForeman&lineUserId=${lineProfile.userId}&t=${Date.now()}`);
-            const foremanData = await checkRes.json();
-
-            if (foremanData.registered === true) {
-                showJsaScreen(foremanData.scannerId, false);
+            if (data.registered === true) {
+                showJsaScreen(data.scannerId, false);
             } else {
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
