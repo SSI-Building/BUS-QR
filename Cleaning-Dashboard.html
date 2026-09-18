@@ -397,17 +397,18 @@
 
     <div class="table-wrap">
         <table>
-            <thead>
+                <thead>
                 <tr>
                     <th class="text-nowrap">รหัส</th>
                     <th class="text-nowrap">ชื่อพนักงาน</th>
                     <th class="text-nowrap">วันที่</th>
                     <th class="text-nowrap">เวลาเข้า</th>
+                    <th class="text-nowrap">สถานะ JSA</th> 
                     <th class="text-nowrap">เวลาออก</th>
                     <th class="text-nowrap">สถานะ</th>
                     <th>เหตุผล / หมายเหตุ</th>
                 </tr>
-            </thead>
+                </thead>
             <tbody id="tableBody">
                 <tr>
                     <td colspan="7">
@@ -552,9 +553,15 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
                 fullName: row.fullName,
                 profilePic: row.profilePic, 
                 dateOnly: cleanDate,
+                jsaStatus: row.jsaStatus || "", // 👈 เก็บค่า JSA
                 scans: [],
                 reasons: [] 
             };
+        }
+        
+        // อัปเดตค่า JSA ถ้ามันถูกส่งมาในรอบการสแกนใดๆ
+        if(row.jsaStatus && row.jsaStatus !== "") {
+            grouped[key].jsaStatus = row.jsaStatus;
         }
 
         grouped[key].scans.push({
@@ -574,6 +581,12 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
         group.scans.sort((a, b) => a.timeStr.localeCompare(b.timeStr));
         const reasonText = group.reasons.length > 0 ? `<div class="reason-text">${group.reasons.join('<br>')}</div>` : "-";
 
+        // 🔥 เช็คว่าวันนี้เป็นวันเสาร์หรือไม่ เพื่อกำหนดเวลาเลิกงาน
+        const dateParts = group.dateOnly.split('/');
+        const rowDate = new Date(dateParts[2], dateParts[1] - 1, dateParts[0]); // ปี, เดือน(เริ่มที่ 0), วัน
+        const isSaturday = (rowDate.getDay() === 6);
+        const checkoutTarget = isSaturday ? "15:30" : "16:30";
+
         for (let i = 0; i < group.scans.length; i += 2) {
             let sIn = group.scans[i];
             let sOut = group.scans[i + 1]; 
@@ -592,7 +605,9 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
             
             if (!isOT) {
                 if (sIn && !sOut) {
-                    if (!(group.dateOnly === todayStr && currentTimeStr < "16:25")) {
+                    // ถ้าเวลายังไม่ถึงกำหนดเลิกงานของวันนั้น ก็จะไม่ขึ้นเตือน "ไม่บันทึกเวลาออก"
+                    const currentTargetMinus5 = isSaturday ? "15:25" : "16:25";
+                    if (!(group.dateOnly === todayStr && currentTimeStr < currentTargetMinus5)) {
                         statusArr.push('<span class="status warning">ไม่บันทึกเวลาออก</span>');
                     }
                 }
@@ -605,7 +620,8 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
                     rowHasLate = true;
                 }
                 
-                if (sOut && sOut.timeStr < "16:30") {
+                // 🔥 แก้บักวันเสาร์ ใช้ตัวแปร checkoutTarget แทนเวลาตายตัว
+                if (sOut && sOut.timeStr < checkoutTarget) {
                     statusArr.push('<span class="status danger">ออกก่อนเวลา</span>');
                     countEarly++;
                     rowHasEarly = true;
@@ -628,6 +644,7 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
                 fullName: group.fullName,
                 profilePic: group.profilePic,
                 dateOnly: group.dateOnly,
+                jsaStatus: group.jsaStatus, // 👈 ส่งต่อเพื่อนำไปแสดง
                 sIn: sIn,
                 sOut: sOut,
                 isOT: isOT,
@@ -639,7 +656,6 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
         }
     });
 
-    // นับจำนวนพนักงานจากข้อมูลที่ถูกกรองวันที่และคำค้นหาเรียบร้อยแล้ว (grouped)
     countTotal = new Set(Object.values(grouped).map(g => g.empId)).size;
     
     document.getElementById("totalEmp").innerText = countTotal;
@@ -654,13 +670,12 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
     });
 
     if (displayRows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 40px; color: var(--muted);">ไม่พบรายชื่อในกลุ่มตัวกรองสถานะที่เลือก</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 40px; color: var(--muted);">ไม่พบรายชื่อในกลุ่มตัวกรองสถานะที่เลือก</td></tr>`;
         return;
     }
 
     const buildScanCell = (scan) => {
         if (!scan) return `<span style="color:#cbd5e1;">-</span>`;
-        
         let imgHtml = "";
         if (scan.imageUrl) {
             if (scan.imageUrl.includes("id=")) {
@@ -672,7 +687,6 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
                 imgHtml = `<img src="${scan.imageUrl}" onclick="window.open('${scan.imageUrl}', '_blank')" title="เปิดดูหลักฐาน">`;
             }
         }
-        
         return `
             <div class="scan-cell">
                 <span class="time-text">${scan.timeStr}</span>
@@ -700,12 +714,23 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
             </div>
         `;
 
+        // 🔥 สร้าง Badge สวยๆ สำหรับ JSA
+        let jsaHtml = `<span style="color:#cbd5e1;">-</span>`;
+        if (row.jsaStatus === "ยืนยันว่าได้ชี้แจงแล้ว") {
+            jsaHtml = `<div class="status success" style="display:inline-block; font-size:10px;"><i class="fa-solid fa-check-double"></i> ชี้แจงแล้ว</div>`;
+        } else if (row.jsaStatus === "ยังไม่ได้ชี้แจง") {
+            jsaHtml = `<div class="status danger" style="display:inline-block; font-size:10px;"><i class="fa-solid fa-xmark"></i> ยังไม่ชี้แจง</div>`;
+        } else if (row.jsaStatus !== "") {
+            jsaHtml = `<div class="status info" style="display:inline-block; font-size:10px;">${row.jsaStatus}</div>`;
+        }
+
         html += `
             <tr>
                 <td class="text-nowrap"><strong>${row.empId}</strong></td>
                 <td class="text-nowrap">${profileHtml}</td>
                 <td class="text-nowrap" style="color: var(--muted); font-weight: 500;">${row.dateOnly}</td>
                 <td class="text-nowrap">${buildScanCell(row.sIn)}</td>
+                <td class="text-nowrap">${jsaHtml}</td> <!-- 👈 แสดงผล JSA ตรงนี้ -->
                 <td class="text-nowrap">${buildScanCell(row.sOut)}</td>
                 <td class="text-nowrap">${row.statusHtml}</td>
                 <td>${row.reasonText}</td>
@@ -715,7 +740,6 @@ function processAndRenderData(rawData, filterDate, searchQuery, statusFilter) {
 
     tbody.innerHTML = html;
 }
-
 // เมื่อโหลดหน้าจอ ให้ดึงสถานะธีมเดิมที่เคยบันทึกไว้
 window.onload = function() {
     const savedTheme = localStorage.getItem('dashboard-theme') || 'light';
