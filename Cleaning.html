@@ -437,10 +437,19 @@ async function loginLine() {
         // ดึงลิงก์รูปโปรไฟล์จาก LIFF
         const profilePicUrl = profile.pictureUrl || ""; 
         
-        // แนบส่งไปกับลิงก์
-       const response = await fetch(
-            `${FIND_USER_URL}?action=findUser&lineUserId=${currentLineUserId}&pictureUrl=${encodeURIComponent(profilePicUrl)}`
-        );
+        
+        // แนบส่งแบบ POST เพื่อทะลวงบล็อกของ iPhone/iOS
+                const response = await fetch(FIND_USER_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: "findUser",
+                        lineUserId: currentLineUserId,
+                        pictureUrl: profilePicUrl
+                    }),
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8"
+                    }
+                });
 
         // ดึงข้อมูลมาเป็น Text ดิบๆ ก่อน เพื่อป้องกัน JSON พัง
         const rawText = await response.text(); 
