@@ -91,7 +91,7 @@
     <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูล</p>
 </div>
 
-<!-- 🌟 ส่วนที่เพิ่มเข้ามาใหม่: หน้าจอให้กดเลือก JSA 🌟 -->
+<!-- 🌟 ส่วนหน้าจอให้กดเลือก JSA 🌟 -->
 <div id="jsaScreen" class="register-card" style="display: none;">
     <i class="fa-solid fa-clipboard-list icon-large" style="color: var(--warning); font-size: 60px;"></i>
     <h1 style="font-size: 22px; font-weight: 800; color: white;">การชี้แจง JSA</h1>
@@ -99,11 +99,11 @@
         คุณได้ชี้แจง JSA ให้ผู้ปฏิบัติงานรับทราบก่อนเริ่มงานแล้วหรือไม่?
     </p>
     
-    <button class="btn-primary" style="background: var(--success); margin-bottom: 12px; height: 55px;" onclick="submitJsa('ยืนยันว่าได้ชี้แจง JSA แล้ว')">
+    <button class="btn-primary" style="background: var(--success); margin-bottom: 12px; height: 55px;" onclick="submitJsa('ยืนยันว่าได้ชี้แจงแล้ว')">
         <i class="fa-solid fa-check-double"></i> ยืนยันว่าได้ชี้แจงแล้ว
     </button>
     
-    <button class="btn-primary" style="background: var(--danger); height: 55px;" onclick="submitJsa('ไม่ได้ชี้แจ้ง JSA')">
+    <button class="btn-primary" style="background: var(--danger); height: 55px;" onclick="submitJsa('ยังไม่ได้ชี้แจง')">
         <i class="fa-solid fa-xmark"></i> ยังไม่ได้ชี้แจง
     </button>
 </div>
@@ -127,7 +127,7 @@
         <input type="text" id="empIdInput" placeholder="รหัสพนักงาน (เช่น S0123)" autocomplete="off" inputmode="text">
     </div>
 
-<div id="cameraArea" class="video-container">
+    <div id="cameraArea" class="video-container">
         <video id="selfieVideo" playsinline autoplay muted></video>
         <canvas id="overlayCanvas"></canvas>
         <div class="flash-effect" id="flashScreen"></div>
@@ -164,6 +164,7 @@
 
 <script>
     const LIFF_ID = "2007956727-gZOxrA26"; 
+    // ⚠️ ถ้าเปลี่ยนลิงก์ Apps script ใหม่ อย่าลืมเอามาเปลี่ยนตรงนี้นะครับ
     const API_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
     
     const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
@@ -205,7 +206,6 @@
             const foremanData = await checkRes.json();
 
             if (foremanData.registered === true) {
-                // 🌟 เปลี่ยนจากการ autoSave ทันที เป็นให้แสดงหน้า JSA ก่อน 🌟
                 showJsaScreen(foremanData.scannerId, false);
             } else {
                 document.getElementById('loadingScreen').style.display = 'none';
@@ -216,8 +216,24 @@
         }
     };
 
-    // 🌟 ฟังก์ชันแสดงหน้าต่างถาม JSA 🌟
+    // 🌟 ฟังก์ชันแสดงหน้าต่างถาม JSA (อัปเดตระบบเช็คเวลา) 🌟
     function showJsaScreen(scannerId, isJustRegistered) {
+        // ดึงชั่วโมงปัจจุบัน (0-23)
+        const currentHour = new Date().getHours();
+
+        // 🟢 ถ้าเวลาตั้งแต่ 15:00 น. เป็นต้นไป ให้ข้ามหน้า JSA ไปเลย
+        if (currentHour >= 15) {
+            document.getElementById('loadingScreen').style.display = 'flex';
+            document.getElementById('registerScreen').style.display = 'none';
+            document.getElementById('jsaScreen').style.display = 'none';
+            updateLoading("กำลังบันทึกข้อมูลเข้าสู่ระบบ...");
+            
+            // ข้ามไปเซฟเลย โดยส่ง JSA เป็นค่าว่าง ("") เพื่อไม่ให้ทับข้อมูลตอนเช้า
+            autoSaveData(scannerId, isJustRegistered, "");
+            return;
+        }
+
+        // 🟢 ถ้าเวลายังไม่ถึง 15:00 น. ให้แสดงหน้าถาม JSA
         tempScannerId = scannerId;
         tempIsJustRegistered = isJustRegistered;
         
@@ -335,14 +351,12 @@
         const regData = await regRes.json();
         
         if (regData.success) {
-            // 🌟 เปลี่ยนจากการ autoSave ทันที เป็นให้แสดงหน้า JSA ก่อน 🌟
             showJsaScreen(empId, true);
         } else {
             showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error");
         }
     }
 
-    // 🌟 เพิ่มพารามิเตอร์ jsaStatus มารับค่าไปส่งให้ Apps Script 🌟
     async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "") {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
@@ -403,7 +417,7 @@
     function showResult(title, desc, status) {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('registerScreen').style.display = 'none';
-        document.getElementById('jsaScreen').style.display = 'none'; // ซ่อนหน้า JSA เผื่อไว้ด้วย
+        document.getElementById('jsaScreen').style.display = 'none'; 
         
         const resultScreen = document.getElementById('resultScreen');
         
