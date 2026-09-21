@@ -397,7 +397,8 @@
             <div class="filter-controls">
                 <div class="date-input-wrapper">
                     <label><i class="fa-solid fa-calendar-days"></i> วันที่:</label>
-                    <input type="date" id="dateFilter" onchange="applyFilter()">
+                    <!-- 👈 เปลี่ยน onchange เป็น loadData() -->
+                    <input type="date" id="dateFilter" onchange="loadData()"> 
                 </div>
                 <button class="btn btn-muted" onclick="clearDateFilter()">ดูทั้งหมด</button>
                 <button class="btn" onclick="loadData()"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
@@ -465,23 +466,35 @@ function updateThemeIcon(theme) {
     }
 }
 
-// ฟังก์ชันดึงข้อมูลจากระบบ
-async function loadData() {
+// ฟังก์ชันดึงข้อมูลจากระบบ (รองรับการดึงแบบระบุวันที่ และดึงทั้งหมด)
+async function loadData(fetchAll = false) {
     const tbody = document.getElementById("tableBody");
     tbody.innerHTML = `<tr><td colspan="8"><div class="loading-state"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><span>กำลังโหลดข้อมูล...</span></div></td></tr>`;
 
+    let fetchUrl = `${SCRIPT_URL}?action=getDashboardData`;
+
+    // 🌟 ถ้าไม่ได้กด "ดูทั้งหมด" ให้แนบวันที่ปัจจุบันในช่อง Date picker ส่งไปด้วย
+    if (!fetchAll) {
+        const dateVal = document.getElementById("dateFilter").value;
+        if (dateVal) {
+            const parts = dateVal.split('-'); // แปลง YYYY-MM-DD เป็น DD/MM/YYYY
+            const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            fetchUrl += `&date=${formattedDate}`; // แนบไปใน URL
+        }
+    }
+
     try {
-        const response = await fetch(`${SCRIPT_URL}?action=getDashboardData`);
+        const response = await fetch(fetchUrl);
         const result = await response.json();
 
         if (result.success) {
             cachedRawData = result.data;
-            applyFilter();
+            applyFilter(); // จัดเรียงและแสดงผลบนหน้าเว็บตามปกติ
         } else {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:red;">เกิดข้อผิดพลาด: ${result.message || 'ไม่สามารถดึงข้อมูลได้'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:red;">เกิดข้อผิดพลาด: ${result.message || 'ไม่สามารถดึงข้อมูลได้'}</td></tr>`;
         }
     } catch (error) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:red;">เชื่อมต่อฐานข้อมูลล้มเหลว กรุณากดปุ่มเพื่อลองใหม่อีกครั้ง</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:red;">เชื่อมต่อฐานข้อมูลล้มเหลว กรุณากดปุ่มเพื่อลองใหม่อีกครั้ง</td></tr>`;
     }
 }
 
@@ -516,9 +529,10 @@ function applyFilter() {
     processAndRenderData(cachedRawData, formattedFilterDate, searchVal, currentStatusFilter);
 }
 
+// เมื่อกดปุ่ม "ดูทั้งหมด"
 function clearDateFilter() {
     document.getElementById("dateFilter").value = "";
-    applyFilter();
+    loadData(true); // 👈 ส่ง true ไปเพื่อให้ข้ามเงื่อนไขวันที่ และโหลดทั้งหมดจาก Server
 }
 
 // ฟังก์ชันประมวลผลคำนวณและแสดงผลลัพธ์
