@@ -164,20 +164,14 @@
 
 <script>
     const LIFF_ID = "2007956727-gZOxrA26"; 
-    // ⚠️ ถ้าเปลี่ยนลิงก์ Apps script ใหม่ อย่าลืมเอามาเปลี่ยนตรงนี้นะครับ
     const API_URL = "https://script.google.com/macros/s/AKfycbxXBx3J64GaNQORciPtSiYcLA87q3x9fzAM1Jqhv4rZ24EbNDH1gZz3ip4tFFkdFXor/exec";
-    
     const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
     
     let scannedUUID = "";
     let lineProfile = null;
     let videoStream = null;
     let faceDetectionInterval = null;
-    
-    // ตัวแปรสำหรับเก็บค่าชั่วคราวก่อนกดปุ่ม JSA
-    let tempScannerId = "";
-    let tempIsJustRegistered = false;
-
+    let isSubmittingJsa = false; // ป้องกันการกด JSA รัวๆ
 
     window.onload = async () => { 
         try {
@@ -195,7 +189,6 @@
             lineProfile = await liff.getProfile();
             updateLoading("กำลังตรวจสอบสิทธิ์...");
             
-            // 🔥 ยิง API แค่ครั้งเดียว (ลดคอขวด) ได้ข้อมูลครบ
             const res = await fetch(`${API_URL}?action=initScanner&scannerLineId=${lineProfile.userId}&t=${Date.now()}`);
             const data = await res.json();
 
@@ -205,8 +198,11 @@
             }
 
             if (data.registered === true) {
-                showJsaScreen(data.scannerId, false);
+                // 🔥 ผู้ที่มีประวัติใบหน้าแล้ว ให้เซฟเวลาเข้างานทันที!
+                updateLoading("กำลังบันทึกเวลาเข้างาน...");
+                await autoSaveData(data.scannerId, false, "รอดำเนินการ");
             } else {
+                // ผู้ที่ยังไม่มีประวัติให้ไปสแกนหน้า
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
             }
@@ -214,41 +210,6 @@
             showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", "error");
         }
     };
-
-    // 🌟 ฟังก์ชันแสดงหน้าต่างถาม JSA (อัปเดตระบบเช็คเวลา) 🌟
-    function showJsaScreen(scannerId, isJustRegistered) {
-        // ดึงชั่วโมงปัจจุบัน (0-23)
-        const currentHour = new Date().getHours();
-
-        // 🟢 ถ้าเวลาตั้งแต่ 15:00 น. เป็นต้นไป ให้ข้ามหน้า JSA ไปเลย
-        if (currentHour >= 15) {
-            document.getElementById('loadingScreen').style.display = 'flex';
-            document.getElementById('registerScreen').style.display = 'none';
-            document.getElementById('jsaScreen').style.display = 'none';
-            updateLoading("กำลังบันทึกข้อมูลเข้าสู่ระบบ...");
-            
-            // ข้ามไปเซฟเลย โดยส่ง JSA เป็นค่าว่าง ("") เพื่อไม่ให้ทับข้อมูลตอนเช้า
-            autoSaveData(scannerId, isJustRegistered, "");
-            return;
-        }
-
-        // 🟢 ถ้าเวลายังไม่ถึง 15:00 น. ให้แสดงหน้าถาม JSA
-        tempScannerId = scannerId;
-        tempIsJustRegistered = isJustRegistered;
-        
-        document.getElementById('loadingScreen').style.display = 'none';
-        document.getElementById('registerScreen').style.display = 'none';
-        document.getElementById('jsaScreen').style.display = 'block';
-    }
-
-    // 🌟 เมื่อกดปุ่มใดปุ่มหนึ่งจากหน้า JSA จะส่งข้อความนั้นไปบันทึก 🌟
-    async function submitJsa(jsaText) {
-        document.getElementById('jsaScreen').style.display = 'none';
-        document.getElementById('loadingScreen').style.display = 'flex';
-        updateLoading("กำลังบันทึกข้อมูล...");
-        
-        await autoSaveData(tempScannerId, tempIsJustRegistered, jsaText);
-    }
 
     async function startCameraSequence() {
         const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
@@ -288,14 +249,12 @@
 
                     if (detection) {
                         faceFoundCount++;
-                        
                         if (faceFoundCount >= 3) {
                             clearInterval(faceDetectionInterval); 
                             
                             statusText.innerText = "AI ยืนยันใบหน้าสำเร็จ!";
                             statusText.style.color = "var(--success)";
                             document.getElementById('cameraArea').style.borderColor = "var(--success)";
-                            
                             document.getElementById('flashScreen').classList.add('flash-active');
                             
                             setTimeout(() => {
@@ -308,7 +267,6 @@
                     }
                 }, 300); 
             });
-
         } catch (err) {
             console.error(err);
             alert("เกิดข้อผิดพลาดในการเปิดกล้อง หรือโหลด AI ไม่สำเร็จ");
@@ -328,7 +286,6 @@
             0, 0, size, size
         );
         const selfieBase64 = canvas.toDataURL("image/jpeg", 0.5); 
-
         videoStream.getTracks().forEach(track => track.stop());
 
         document.getElementById('registerScreen').style.display = 'none';
@@ -348,18 +305,19 @@
         });
         
         const regData = await regRes.json();
-        
         if (regData.success) {
-            showJsaScreen(empId, true);
+            // 🔥 ลงทะเบียนหน้าเสร็จแล้ว ให้เซฟเวลาเข้างานทันที!
+            updateLoading("กำลังบันทึกเวลาเข้างาน...");
+            await autoSaveData(empId, true, "รอดำเนินการ");
         } else {
             showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error");
         }
     }
 
-    async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "") {
+    // 🌟 1. ฟังก์ชันนี้จะเซฟเวลาเข้างานให้ก่อน
+    async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "รอดำเนินการ") {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
-
             const response = await fetch(API_URL, {
                 method: "POST",
                 body: JSON.stringify({ 
@@ -367,44 +325,86 @@
                     uuidList: [scannedUUID], 
                     scannerId: scannerId, 
                     pictureUrl: picUrl,
-                    jsaStatus: jsaStatus // 👈 ส่งค่าตัวแปรไปยัง Apps Script 
+                    jsaStatus: jsaStatus 
                 })
             });
-            const result = await response.json();
+            
+            // ดักจับ SyntaxError เวลาระบบคิวเต็ม
+            const rawText = await response.text();
+            let result;
+            try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); }
 
             if (result.expiredList && result.expiredList.length > 0) {
-                if (isJustRegistered) {
-                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดเวลาสแกนแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
-                    setTimeout(() => closeApp(), 10000);
-                } else {
-                    showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลาแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
-                    setTimeout(() => closeApp(), 3000);
-                }
+                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลาแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                setTimeout(() => closeApp(), 3000);
             } 
             else if (result.notFound && result.notFound.length > 0) {
-                if (isJustRegistered) {
-                    showResult("ลงทะเบียนสำเร็จ!", "แต่ QR Code หมดอายุและถูกยกเลิกแล้ว<br>กรุณาให้พนักงานสร้าง QR แล้วสแกนใหม่อีกครั้ง", "warning");
-                    setTimeout(() => closeApp(), 10000);
-                } else {
-                    showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
-                    setTimeout(() => closeApp(), 3000);
-                }
+                showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                setTimeout(() => closeApp(), 3000);
             } 
             else if (result.success) {
-                if (isJustRegistered) {
-                    showResult("ยืนยันตัวตน & บันทึกสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
-                } else {
-                    showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
-                }
-                setTimeout(() => closeApp(), 2500);
+                // 🔥 เซฟเวลาสำเร็จ! โชว์หน้าถาม JSA ต่อ
+                showJsaScreen(); 
             } 
             else {
                 showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
                 setTimeout(() => closeApp(), 3000);
             }
         } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่", "error");
             setTimeout(() => closeApp(), 3000);
+        }
+    }
+
+    // 🌟 2. ฟังก์ชันแสดงหน้าต่างถาม JSA
+    function showJsaScreen() {
+        const currentHour = new Date().getHours();
+
+        // 🟢 ถ้าเวลาตั้งแต่ 15:00 น. ให้อัปเดต JSA อัตโนมัติ (ข้ามไปเลย)
+        if (currentHour >= 15) {
+            submitJsa("ข้ามการชี้แจง (หลัง 15:00 น.)");
+            return;
+        }
+        
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('jsaScreen').style.display = 'block';
+    }
+
+    // 🌟 3. ฟังก์ชันอัปเดต JSA (ยิงไปที่ updateJsa API)
+    async function submitJsa(jsaText) {
+        if (isSubmittingJsa) return;
+        isSubmittingJsa = true;
+
+        document.getElementById('jsaScreen').style.display = 'none';
+        document.getElementById('loadingScreen').style.display = 'flex';
+        updateLoading("กำลังอัปเดตผล JSA...");
+        
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "updateJsa",
+                    uuid: scannedUUID,
+                    jsaStatus: jsaText
+                })
+            });
+
+            // ดักจับ SyntaxError
+            const rawText = await response.text();
+            let result;
+            try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); }
+
+            if (result.success) {
+                showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
+            } else {
+                showResult("เกิดข้อผิดพลาด", result.message, "error");
+            }
+            setTimeout(() => closeApp(), 2500);
+
+        } catch (err) {
+            showResult("ข้อผิดพลาด", "ไม่สามารถอัปเดต JSA ได้ (แต่บันทึกเวลาแล้ว)", "error");
+            setTimeout(() => closeApp(), 3500);
         }
     }
 
@@ -419,7 +419,6 @@
         document.getElementById('jsaScreen').style.display = 'none'; 
         
         const resultScreen = document.getElementById('resultScreen');
-        
         document.getElementById('resultTitle').innerText = title;
         document.getElementById('resultDesc').innerHTML = desc; 
         
