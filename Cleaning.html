@@ -630,12 +630,14 @@ async function createQR() {
                             const timeStr = String(scanTime.getHours()).padStart(2, '0') + ":" + String(scanTime.getMinutes()).padStart(2, '0');
                             let warningHtml = "";
                             
-                            if (timeStr < "12:00") {
-                                if (timeStr > "08:45") {
-                                    warningHtml = `
-                                    <div class="warning-box">
-                                        <i class="fa-solid fa-triangle-exclamation"></i> คุณเข้างานสาย (หลัง 08:45 น.)
-                                    </div>`;
+                                if (timeStr < "12:00") {
+                                    // 1. สแกนช่วงเช้า: เช็คเข้างานสาย
+                                    if (timeStr > "09:00") {
+                                        warningHtml = `
+                                        <div class="warning-box">
+                                            <i class="fa-solid fa-triangle-exclamation"></i> คุณเข้างานสาย (หลัง 09:00 น.)
+                                        </div>`;
+                                    }
                                 }
                             } else {
                                 const checkoutTarget = (currentDay === 6) ? "15:30" : "16:30";
