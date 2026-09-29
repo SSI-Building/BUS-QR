@@ -830,7 +830,7 @@
 
         async function checkQRStatus(uuid) {
             try {
-                const response = await fetch(`${CREATE_QR_URL}?action=checkStatus&uuid=${uuid}`);
+                const response = await fetch(`${CREATE_QR_URL}?action=checkStatus&uuid=${uuid}&t=${Date.now()}`);
                 const result = await response.json();
                 return result; 
             } catch (err) {
