@@ -523,7 +523,6 @@ async function loginLine() {
 async function createQR() {
     try {
         if (isQRActive) return;
-
         isQRActive = true;
         
         const qrBtn = document.getElementById("createQrBtn");
@@ -537,7 +536,23 @@ async function createQR() {
         const response = await fetch(
             `${CREATE_QR_URL}?action=createQR&lineUserId=${currentLineUserId}`
         );
-        const result = await response.json();
+        
+        // 🌟 แก้ไขจุดที่เกิด SyntaxError ตรงนี้ 🌟
+        const rawText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(rawText);
+        } catch (e) {
+            console.error("HTML Error from Google (Not JSON):", rawText);
+            alert("ขณะนี้มีผู้ใช้งานพร้อมกันจำนวนมาก กรุณากดสร้าง QR ใหม่อีกครั้ง");
+            isQRActive = false;
+            if (qrBtn) {
+                qrBtn.disabled = false;
+                qrBtn.innerHTML = '<i class="fa-solid fa-qrcode"></i> ลองสร้างใหม่อีกครั้ง';
+            }
+            return;
+        }
+        // 🌟 -------------------------------- 🌟
 
         if (!result.success) {
             alert(result.message);
@@ -554,7 +569,6 @@ async function createQR() {
         }
         
         const currentUUID = result.uuid;
-
         const qrArea = document.getElementById("qrcode");
         const qrBox = document.createElement("div");
         qrBox.className = "qr-box";
@@ -611,14 +625,12 @@ async function createQR() {
                                 qrBtn.innerHTML = '<i class="fa-solid fa-check"></i> บันทึกข้อมูลสำเร็จ';
                             }
                             
-                            // 🌟 ส่วนลอจิกเช็คเวลาเลิกงานวันเสาร์ที่อัปเดต (ตัดปีกกาตัวที่เกินออกแล้ว)
                             const scanTime = new Date();
-                            const currentDay = scanTime.getDay(); // 0 = อาทิตย์, 1 = จันทร์, ..., 6 = เสาร์
+                            const currentDay = scanTime.getDay();
                             const timeStr = String(scanTime.getHours()).padStart(2, '0') + ":" + String(scanTime.getMinutes()).padStart(2, '0');
                             let warningHtml = "";
                             
                             if (timeStr < "12:00") {
-                                // 1. สแกนช่วงเช้า: เช็คเข้างานสาย (เกณฑ์เดิม หลัง 08:45 น.)
                                 if (timeStr > "08:45") {
                                     warningHtml = `
                                     <div class="warning-box">
@@ -626,10 +638,7 @@ async function createQR() {
                                     </div>`;
                                 }
                             } else {
-                                // 2. สแกนช่วงหลังเที่ยง: เช็คเวลาเลิกงานแยกวัน
-                                // ถ้าเป็นวันเสาร์ (6) ใช้เกณฑ์ 15:30 น. วันอื่น ๆ ใช้เกณฑ์ 16:30 น.
                                 const checkoutTarget = (currentDay === 6) ? "15:30" : "16:30";
-                            
                                 if (timeStr < checkoutTarget) {
                                     warningHtml = `
                                     <div class="warning-box">
@@ -656,7 +665,7 @@ async function createQR() {
                             isQRActive = false;
                         }
                     }
-                }, 5000);
+                }, 3000); // เปลี่ยนรอบตรวจเช็คเป็น 3 วินาทีเพื่อลดภาระเซิร์ฟเวอร์
             }
 
             if (timeLeft <= 0) {
@@ -686,9 +695,7 @@ async function createQR() {
 
     } catch (err) {
         console.error(err);
-        alert(err);
         isQRActive = false;
-        
         const qrBtn = document.getElementById("createQrBtn");
         if (qrBtn) {
             qrBtn.disabled = false;
@@ -696,7 +703,6 @@ async function createQR() {
         }
     }
 }
-
 // ========================================
 // TEXT INPUT & SAVE REASON
 // ========================================
