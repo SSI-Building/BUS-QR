@@ -631,7 +631,7 @@
                     updateClock();
                 }, 1000);
 
-                let timeLeft = 30;
+                let timeLeft = 60;
                 let isSaved = false; 
                 let checkStatusTimer = null; 
 
@@ -644,7 +644,7 @@
                         document.getElementById("countdownArea").innerHTML = `หมดอายุใน <span class="time-num">${timeLeft}</span> วินาที`;
                     }
 
-                    if (timeLeft <= 25 && timeLeft > 0 && !checkStatusTimer && !isSaved) {
+                    if (timeLeft <= 60 && timeLeft > 0 && !checkStatusTimer && !isSaved) {
                         checkStatusTimer = setInterval(async () => {
                             if (timeLeft > 0 && !isSaved) {
                                 const statusResult = await checkQRStatus(currentUUID);
