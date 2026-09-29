@@ -171,7 +171,7 @@
     let lineProfile = null;
     let videoStream = null;
     let faceDetectionInterval = null;
-    let isSubmittingJsa = false; // ป้องกันการกด JSA รัวๆ
+    let isSubmittingJsa = false; 
 
     window.onload = async () => { 
         try {
@@ -198,11 +198,9 @@
             }
 
             if (data.registered === true) {
-                // 🔥 ผู้ที่มีประวัติใบหน้าแล้ว ให้เซฟเวลาเข้างานทันที!
                 updateLoading("กำลังบันทึกเวลาเข้างาน...");
                 await autoSaveData(data.scannerId, false, "รอดำเนินการ");
             } else {
-                // ผู้ที่ยังไม่มีประวัติให้ไปสแกนหน้า
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('registerScreen').style.display = 'block';
             }
@@ -292,8 +290,10 @@
         document.getElementById('loadingScreen').style.display = 'flex';
         updateLoading("กำลังบันทึกข้อมูลใบหน้าลงระบบ...");
 
+        // 🌟 เติม Headers ตรงนี้ 🌟
         const regRes = await fetch(API_URL, {
             method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({ 
                 action: "registerForeman", 
                 lineUserId: lineProfile.userId,
@@ -306,7 +306,6 @@
         
         const regData = await regRes.json();
         if (regData.success) {
-            // 🔥 ลงทะเบียนหน้าเสร็จแล้ว ให้เซฟเวลาเข้างานทันที!
             updateLoading("กำลังบันทึกเวลาเข้างาน...");
             await autoSaveData(empId, true, "รอดำเนินการ");
         } else {
@@ -314,12 +313,14 @@
         }
     }
 
-    // 🌟 1. ฟังก์ชันนี้จะเซฟเวลาเข้างานให้ก่อน
     async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "รอดำเนินการ") {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
+            
+            // 🌟 เติม Headers ตรงนี้ 🌟
             const response = await fetch(API_URL, {
                 method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
                 body: JSON.stringify({ 
                     action: "saveData", 
                     uuidList: [scannedUUID], 
@@ -329,7 +330,6 @@
                 })
             });
             
-            // ดักจับ SyntaxError เวลาระบบคิวเต็ม
             const rawText = await response.text();
             let result;
             try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); }
@@ -343,7 +343,6 @@
                 setTimeout(() => closeApp(), 3000);
             } 
             else if (result.success) {
-                // 🔥 เซฟเวลาสำเร็จ! โชว์หน้าถาม JSA ต่อ
                 showJsaScreen(); 
             } 
             else {
@@ -351,16 +350,14 @@
                 setTimeout(() => closeApp(), 3000);
             }
         } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่", "error");
-            setTimeout(() => closeApp(), 3000);
+            showResult("ข้อผิดพลาด", "ไม่สามารถรับการตอบกลับจากเซิร์ฟเวอร์ได้ แต่ข้อมูลอาจถูกบันทึกแล้ว", "error");
+            setTimeout(() => closeApp(), 4000);
         }
     }
 
-    // 🌟 2. ฟังก์ชันแสดงหน้าต่างถาม JSA
     function showJsaScreen() {
         const currentHour = new Date().getHours();
 
-        // 🟢 ถ้าเวลาตั้งแต่ 15:00 น. ให้อัปเดต JSA อัตโนมัติ (ข้ามไปเลย)
         if (currentHour >= 15) {
             submitJsa("ข้ามการชี้แจง (หลัง 15:00 น.)");
             return;
@@ -371,7 +368,6 @@
         document.getElementById('jsaScreen').style.display = 'block';
     }
 
-    // 🌟 3. ฟังก์ชันอัปเดต JSA (ยิงไปที่ updateJsa API)
     async function submitJsa(jsaText) {
         if (isSubmittingJsa) return;
         isSubmittingJsa = true;
@@ -381,8 +377,10 @@
         updateLoading("กำลังอัปเดตผล JSA...");
         
         try {
+            // 🌟 เติม Headers ตรงนี้ 🌟
             const response = await fetch(API_URL, {
                 method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
                 body: JSON.stringify({
                     action: "updateJsa",
                     uuid: scannedUUID,
@@ -390,7 +388,6 @@
                 })
             });
 
-            // ดักจับ SyntaxError
             const rawText = await response.text();
             let result;
             try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); }
@@ -403,7 +400,7 @@
             setTimeout(() => closeApp(), 2500);
 
         } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถอัปเดต JSA ได้ (แต่บันทึกเวลาแล้ว)", "error");
+            showResult("ข้อผิดพลาด", "บันทึกเวลาสำเร็จ แต่การอัปเดต JSA ขัดข้อง", "error");
             setTimeout(() => closeApp(), 3500);
         }
     }
