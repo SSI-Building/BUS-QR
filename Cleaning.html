@@ -413,13 +413,13 @@
 
         document.addEventListener("contextmenu", (e) => e.preventDefault());
 
+// ========================================
+        // LOGIN (มีระบบจดจำ LocalStorage Cache)
         // ========================================
-        // LOGIN
-        // ========================================
-        let isLoginRunning = false; // ป้องกันการรัวคลิก
+        let isLoginRunning = false; 
 
-        async function loginLine() {
-            if (isLoginRunning) return; // ถ้ากำลังโหลดอยู่ ให้เพิกเฉยการคลิกซ้ำ
+        async function loginLine(forceRefresh = false) {
+            if (isLoginRunning) return; 
             isLoginRunning = true;
             
             const loginBtn = document.querySelector(".login-btn");
@@ -431,7 +431,7 @@
             try {
                 document.getElementById("result").innerHTML = `
                 <div class="loading">
-                    กำลังโหลดข้อมูล กรุณารอสักครู่...
+                    กำลังเปิดใช้งานระบบ กรุณารอสักครู่...
                 </div>
                 `;
                 
@@ -445,42 +445,69 @@
                 currentLineUserId = profile.userId;
                 const profilePicUrl = profile.pictureUrl || "";
 
-                const response = await fetch(FIND_USER_URL, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        action: "findUser",
-                        lineUserId: currentLineUserId,
-                        pictureUrl: profilePicUrl
-                    }),
-                    headers: { "Content-Type": "text/plain;charset=utf-8" }
-                });
+                // 🌟 1. ระบบจดจำ: เช็คข้อมูลจากความจำเครื่อง (Cache)
+                const cacheKey = "busQR_UserData";
+                const cachedString = localStorage.getItem(cacheKey);
+                let userData = null;
 
-                const rawText = await response.text();
-                let result;
-                try {
-                    result = JSON.parse(rawText);
-                } catch (e) {
-                    console.error("HTML Error from Google (Not JSON):", rawText);
+                // ถ้ามีข้อมูลจำไว้ และไม่ได้กดปุ่มบังคับรีเฟรช
+                if (cachedString && !forceRefresh) {
+                    const cachedObj = JSON.parse(cachedString);
+                    // ป้องกันคนสลับบัญชี LINE ในเครื่องเดียวกัน
+                    if (cachedObj.lineId === currentLineUserId) {
+                        userData = cachedObj.data; // ดึงข้อมูลมาใช้เลย ไม่ต้องรอ Google!
+                    }
+                }
+
+                // 🌟 2. ถ้าเครื่องยังไม่เคยจำข้อมูล (หรือสลับบัญชี) ให้ไปโหลดจาก Google
+                if (!userData) {
                     document.getElementById("result").innerHTML = `
-                    <div class="error">
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        ระบบมีผู้ใช้งานพร้อมกันจำนวนมาก (เซิร์ฟเวอร์ตอบกลับผิดพลาด)<br>
-                        <span style="font-size:11px; margin-top:8px; display:block;">
-                            กรุณารอสักครู่แล้วกด Login ใหม่อีกครั้ง
-                        </span>
+                    <div class="loading">
+                        กำลังดึงข้อมูลพนักงานจากระบบ...
                     </div>
                     `;
-                    return; 
+
+                    const response = await fetch(FIND_USER_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            action: "findUser",
+                            lineUserId: currentLineUserId,
+                            pictureUrl: profilePicUrl
+                        }),
+                        headers: { "Content-Type": "text/plain;charset=utf-8" }
+                    });
+
+                    const rawText = await response.text();
+                    let result;
+                    try {
+                        result = JSON.parse(rawText);
+                    } catch (e) {
+                        document.getElementById("result").innerHTML = `
+                        <div class="error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            ระบบมีผู้ใช้งานพร้อมกันจำนวนมาก กรุณาลองใหม่อีกครั้ง
+                        </div>
+                        `;
+                        return; 
+                    }
+
+                    if (!result.success) {
+                        document.getElementById("result").innerHTML = `
+                        <div class="error"><i class="fa-solid fa-circle-exclamation"></i> ${result.message}</div>
+                        `;
+                        return;
+                    }
+
+                    userData = result.data;
+
+                    // 🔥 บันทึกข้อมูลลงเครื่องมือถือไว้ใช้ครั้งต่อไป
+                    localStorage.setItem(cacheKey, JSON.stringify({
+                        lineId: currentLineUserId,
+                        data: userData
+                    }));
                 }
 
-                if (!result.success) {
-                    document.getElementById("result").innerHTML = `
-                    <div class="error"><i class="fa-solid fa-circle-exclamation"></i> ${result.message}</div>
-                    `;
-                    return;
-                }
-
-                const data = result.data;
+                // 🌟 3. แสดงผลหน้าจอ
                 document.getElementById("result").innerHTML = `
                 <div class="success">
                     <i class="fa-solid fa-circle-check"></i> เข้าสู่ระบบสำเร็จ
@@ -488,12 +515,19 @@
                 <div class="info-box">
                     <div class="info-title">ข้อมูลผู้ใช้งาน</div>
                     <div class="row">
-                    <span class="label">รหัสพนักงาน</span>
-                    <span class="value" style="color: var(--primary);">${data.colA}</span>
+                        <span class="label">รหัสพนักงาน</span>
+                        <span class="value" style="color: var(--primary);">${userData.colA}</span>
                     </div>
                     <div class="row">
-                    <span class="label">ชื่อ-สกุล</span>
-                    <span class="value">${data.colB}</span>
+                        <span class="label">ชื่อ-สกุล</span>
+                        <span class="value">${userData.colB}</span>
+                    </div>
+                    
+                    <!-- ปุ่มรีเฟรชข้อมูล เผื่อแอดมินเปลี่ยนชื่อให้พนักงาน -->
+                    <div style="text-align: right; margin-top: 10px;">
+                        <span style="font-size: 11px; color: var(--muted); cursor: pointer; text-decoration: underline;" onclick="clearUserCache()">
+                            <i class="fa-solid fa-rotate"></i> อัปเดตข้อมูล
+                        </span>
                     </div>
                 </div>
                 <button id="createQrBtn" class="qr-btn" onclick="createQR()">
@@ -504,17 +538,22 @@
                 <div id="countdownArea"></div>
                 `;
             } catch (err) {
-                console.error(err);
                 document.getElementById("result").innerHTML = `
-                <div class="error"><i class="fa-solid fa-circle-exclamation"></i> เกิดข้อผิดพลาด: ${err}</div>
+                <div class="error"><i class="fa-solid fa-circle-exclamation"></i> เกิดข้อผิดพลาดในการเชื่อมต่อ</div>
                 `;
             } finally {
                 isLoginRunning = false;
                 if (loginBtn) {
-                    loginBtn.disabled = false;
-                    loginBtn.innerHTML = '<i class="fa-brands fa-line"></i> Login with LINE';
+                    // ปิดปุ่ม Login ทิ้งไปเลยเมื่อเข้าระบบสำเร็จ จะได้ไม่เกะกะ
+                    loginBtn.style.display = "none";
                 }
             }
+        }
+
+        // 🌟 4. ฟังก์ชันสำหรับล้างความจำและโหลดข้อมูลใหม่
+        function clearUserCache() {
+            localStorage.removeItem("busQR_UserData");
+            loginLine(true); // บังคับให้ไปดึงข้อมูลใหม่จาก Google Sheets
         }
 
         // ========================================
