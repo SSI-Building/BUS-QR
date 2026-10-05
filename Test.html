@@ -283,14 +283,14 @@
             (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 
             0, 0, size, size
         );
-        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.5); 
+        // เปลี่ยนบรรทัดนี้เพื่อลดขนาดภาพลงให้ส่งไวสุดๆ (จาก 0.5 เป็น 0.3)
+        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.3); 
         videoStream.getTracks().forEach(track => track.stop());
 
         document.getElementById('registerScreen').style.display = 'none';
         document.getElementById('loadingScreen').style.display = 'flex';
         updateLoading("กำลังบันทึกข้อมูลใบหน้าลงระบบ...");
 
-        // 🌟 เติม Headers ตรงนี้ 🌟
         const regRes = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -313,12 +313,27 @@
         }
     }
 
+    // เพิ่มฟังก์ชันช่วยสำหรับ fetch แบบมีเวลากำหนด (Timeout) ไม่ให้หมุนค้าง
+    async function fetchWithTimeout(resource, options = {}) {
+        const { timeout = 12000 } = options; // ตั้งเวลาตัดจบที่ 12 วินาที
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    }
+
+    // อัปเดตฟังก์ชัน autoSaveData ให้ใช้ fetchWithTimeout แทน fetch เดิม
     async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "รอดำเนินการ") {
         try {
             const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
             
-            // 🌟 เติม Headers ตรงนี้ 🌟
-            const response = await fetch(API_URL, {
+            // 🌟 เปลี่ยนมาใช้ตัวนี้ ป้องกันการหมุนค้างตลอดกาล 🌟
+            const response = await fetchWithTimeout(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
                 body: JSON.stringify({ 
@@ -327,7 +342,8 @@
                     scannerId: scannerId, 
                     pictureUrl: picUrl,
                     jsaStatus: jsaStatus 
-                })
+                }),
+                timeout: 15000 // ให้เวลา 15 วินาที ถ้าไม่ตอบกลับคือเน็ตหลุด แจ้งเตือนเลย
             });
             
             const rawText = await response.text();
@@ -350,8 +366,13 @@
                 setTimeout(() => closeApp(), 3000);
             }
         } catch (err) {
-            showResult("ข้อผิดพลาด", "ไม่สามารถรับการตอบกลับจากเซิร์ฟเวอร์ได้ แต่ข้อมูลอาจถูกบันทึกแล้ว", "error");
-            setTimeout(() => closeApp(), 4000);
+            if (err.name === 'AbortError') {
+                // ดักจับกรณีเน็ตช้าจน Timeout
+                showResult("สถานะไม่แน่ชัด", "อินเทอร์เน็ตช้าเกินไป ข้อมูลอาจจะบันทึกแล้ว กรุณาเช็คกับหัวหน้างานอีกครั้งครับ", "warning");
+            } else {
+                showResult("ข้อผิดพลาด", "ไม่สามารถรับการตอบกลับจากเซิร์ฟเวอร์ได้ แต่ข้อมูลอาจถูกบันทึกแล้ว", "error");
+            }
+            setTimeout(() => closeApp(), 4500);
         }
     }
 
@@ -377,7 +398,6 @@
         updateLoading("กำลังอัปเดตผล JSA...");
         
         try {
-            // 🌟 เติม Headers ตรงนี้ 🌟
             const response = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
