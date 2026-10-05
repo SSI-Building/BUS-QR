@@ -173,7 +173,7 @@
     let faceDetectionInterval = null;
     let isSubmittingJsa = false; 
 
-    window.onload = async () => { 
+window.onload = async () => { 
         try {
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) { liff.login(); return; }
@@ -189,8 +189,18 @@
             lineProfile = await liff.getProfile();
             updateLoading("กำลังตรวจสอบสิทธิ์...");
             
+            // 🌟 ใช้ fetch พร้อมดักดูข้อความดิบถ้าเซิร์ฟเวอร์พ่น Error
             const res = await fetch(`${API_URL}?action=initScanner&scannerLineId=${lineProfile.userId}&t=${Date.now()}`);
-            const data = await res.json();
+            const rawText = await res.text();
+            
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseErr) {
+                // ถ้า JSON.parse ไม่ได้ แสดงว่า Apps Script พ่น Error HTML ออกมา
+                showResult("Apps Script Error", rawText.substring(0, 150), "error");
+                return;
+            }
 
             if (data.allowed === false) {
                 showResult("การเข้าถึงถูกปฏิเสธ", data.message, "error");
@@ -205,7 +215,8 @@
                 document.getElementById('registerScreen').style.display = 'block';
             }
         } catch (error) {
-            showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", "error");
+            // 🌟 แสดง Error ที่เกิดขึ้นจริงแทนคำว่าข้อผิดพลาดทั่วไป
+            showResult("ข้อผิดพลาดระบบ", error.message || "ไม่สามารถเชื่อมต่อได้", "error");
         }
     };
 
