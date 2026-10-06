@@ -1,1275 +1,446 @@
-วันนี้ 10:20
-ข้อความที่วาง (1)(3).txt
-เอกสาร
-const SS_ID = "19j7lJ1iWaonUbvm10Cr1phaiYxzKNqfacCF625mbcHg";
-const FOLDER_ID = "1LqpDIBPozbtz2QKlyQ08KkWK8pthjrTh";
-
-function doGet(e){
-  try {
-    const action = e.parameter.action;
-    
-    // หน้าสแกนมีแค่การดึงข้อมูลเพื่อเช็คสิทธิ์
-    if (action === "initScanner") {
-      const scannerLineId = String(e.parameter.scannerLineId || "").trim();
-      return initScanner(scannerLineId);
-    }
-    
-    return output({ success: false, message: "ไม่พบคำสั่ง GET ที่ระบุ" });
-  } catch(err) {
-    return output({ success: false, error: err.toString() });
-  }
-}
-
-function doPost(e){
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
-    
-    // หน้าสแกนมีแค่ 3 คำสั่งตอนบันทึกข้อมูล
-    if (action === "saveData") {
-      return saveData(data);
-    } else if (action === "updateJsa") {
-      return updateJsaStatus(data);
-    } else if (action === "registerForeman") {
-      return registerForeman(data);
-    }
-    
-    return output({ success: false, message: "ไม่พบคำสั่ง POST ที่ระบุ" });
-  } catch(err) {
-    return output({ success: false, error: err.toString() });
-  }
-}
-
-// ========================================
-// 1. เช็คสิทธิ์ก่อนเข้าหน้าสแกน
-// ========================================
-function initScanner(lineUserId) {
-  if (!lineUserId) return output({ allowed: false, message: "ไม่พบ LINE ID" });
-  const ss = SpreadsheetApp.openById(SS_ID);
-  
-  const listSheet = ss.getSheetByName("List Name");
-  const listValues = listSheet.getDataRange().getValues();
-  let allowed = true;
-  let message = "";
-  
-  for (let i = 1; i < listValues.length; i++) {
-    if (String(listValues[i][3]).trim() === lineUserId) {
-      const role = String(listValues[i][5] || "").trim().toUpperCase(); 
-      if (role !== "ADMIN" && role !== "VIP" && role !== "ยกเว้น") {
-        allowed = false;
-        message = "อุปกรณ์นี้เป็นของพนักงาน ไม่อนุญาตให้ใช้เว็บสแกน!";
-      }
-      break;
-    }
-  }
-  if (!allowed) return output({ allowed: false, message: message });
-
-  const fmSheet = ss.getSheetByName("foreman"); 
-  let registered = false;
-  let scannerId = "";
-  if (fmSheet) {
-    const fmData = fmSheet.getDataRange().getValues();
-    for (let i = 0; i < fmData.length; i++) {
-      if (String(fmData[i][0]).trim() === lineUserId) {
-        registered = true;
-        scannerId = fmData[i][4];
-        break;
-      }
-    }
-  }
-  return output({ allowed: true, registered: registered, scannerId: scannerId });
-}
-
-// ========================================
-// 2. บันทึกเวลาเข้างาน (ปรับแก้ลดปัญหา Time-out)
-// ========================================
-function saveData(data){
-  const scannerId = String(data.scannerId || "").trim().toUpperCase();
-  const uuidList = data.uuidList || [];
-  const selfie = data.selfie || ""; 
-  const existingSelfieUrl = data.existingSelfieUrl || ""; 
-  const pictureUrl = String(data.pictureUrl || "").trim(); 
-  const jsaStatus = String(data.jsaStatus || "").trim(); 
-
-  if(scannerId === "") return output({ success: false, message: "กรุณากรอกรหัสพนักงาน" }); 
-  if(uuidList.length === 0) return output({ success: false, message: "ไม่มี UUID" }); 
-
-  // 🌟 ประมวลผลรูปภาพ "ก่อน" เข้าคิว Lock 🌟
-  // เพราะการเซฟรูปใช้เวลานาน ถ้าไปทำใน Lock จะทำให้คิวคนอื่นติดขัดจนเน็ตหลุด
-  let imageUrl = pictureUrl || existingSelfieUrl;
-  if (imageUrl === "" && selfie !== "") {
-    try {
-        const base64 = selfie.split(",")[1];
-        const blob = Utilities.newBlob(Utilities.base64Decode(base64), "image/jpeg", "SCAN_" + Date.now() + ".jpg");
-        const file = DriveApp.getFolderById(FOLDER_ID).createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        imageUrl = "
-https://drive.google.com/uc?id=" + file.getId();
-    } catch(e) {
-        // ถ้าเซฟรูปพัง อย่างน้อยให้มี URL เปล่าๆ ไม่ต้องทำให้โปรแกรมหยุดทำงาน
-        imageUrl = "อัปโหลดภาพล้มเหลว"; 
-    }
-  }
-
-  const lock = LockService.getScriptLock();
-  let lockAcquired = false; 
-  try {
-    // ให้เวลารอคิวนานขึ้นนิดนึง (15 วิ) ป้องกันตอนคนสแกนพร้อมกันเยอะจัดๆ
-    lock.waitLock(15000); 
-    lockAcquired = true; 
-
-    const ss = SpreadsheetApp.openById(SS_ID);
-    const sheet = ss.getSheetByName("Report");
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return output({ success: false, message: "ไม่มีข้อมูลในตาราง" }); 
-    
-    // ดึงแค่ข้อมูลล่าสุด 300 แถวก็พอครับ ถ้าตารางมีหมื่นแถวมันจะดึงช้ามาก (สมมติวันนึงสแกนไม่เกิน 300)
-    // ตรงนี้ช่วยเพิ่มความเร็วแบบสุดยอด
-    const startRow = Math.max(2, lastRow - 300);
-    const numRowsToFetch = lastRow - startRow + 1;
-    const values = sheet.getRange(startRow, 1, numRowsToFetch, 11).getValues();
-    
-    const updated = []; const notFound = []; const expired = []; 
-
-    uuidList.forEach(uuid => {
-      let found = false;
-      const targetUUID = String(uuid || "").trim().toUpperCase();
-      
-      // ค้นหาจากล่างขึ้นบน
-      for(let i = values.length - 1; i >= 0; i--){
-        const sheetUUID = String(values[i][3] || "").trim().toUpperCase(); 
-        if(sheetUUID === targetUUID){
-          const createTime = new Date(values[i][4]); 
-          
-          if (((new Date() - createTime) / 1000) > 60) {
-              expired.push({ uuid: uuid, name: values[i][1] });
-              found = true; break; 
-          }
-          
-          // คำนวณแถวที่แท้จริงใน Sheet
-          const actualRow = startRow + i;
-          
-          // บันทึกรวดเดียว ลดเวลาโหลด
-          sheet.getRange(actualRow, 6, 1, 3).setValues([[new Date(), imageUrl, scannerId]]);
-          if (jsaStatus !== "") {
-              sheet.getRange(actualRow, 11).setValue(jsaStatus); 
-          }
-          
-          updated.push(uuid); found = true; break;
-        }
-      }
-      if(!found) notFound.push(uuid);
-    });
-    
-    return output({ success: (updated.length > 0), updatedCount: updated.length, updatedList: updated, expiredList: expired, notFound: notFound });
-  } catch (e) {
-    return output({ success: false, message: "ระบบคิวเต็ม หรือมีข้อผิดพลาด กรุณากดสแกนอีกครั้งครับ" });
-  } finally {
-    if (lockAcquired) lock.releaseLock(); 
-  }
-}
-
-// ========================================
-// 3. อัปเดต JSA ตามหลัง (ลบตัวหน่วงเซฟออก)
-// ========================================
-function updateJsaStatus(data) {
-  const uuid = String(data.uuid || "").trim().toUpperCase();
-  const jsaStatus = String(data.jsaStatus || "").trim();
-
-  if (!uuid || !jsaStatus) return output({ success: false, message: "ข้อมูลไม่ครบถ้วน" });
-
-  const lock = LockService.getScriptLock();
-  let lockAcquired = false;
-  try {
-    lock.waitLock(5000);
-    lockAcquired = true;
-    
-    const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName("Report");
-    const values = sheet.getRange(1, 4, sheet.getLastRow(), 1).getValues();
-
-    for (let i = values.length - 1; i >= 1; i--) {
-      const sheetUUID = String(values[i][0] || "").trim().toUpperCase(); 
-      if (sheetUUID === uuid) {
-        sheet.getRange(i + 1, 11).setValue(jsaStatus);
-        return output({ success: true, message: "อัปเดต JSA สำเร็จ" });
-      }
-    }
-    return output({ success: false, message: "ไม่พบข้อมูลสแกนนี้ในระบบ" });
-  } catch (e) {
-    return output({ success: false, message: "ระบบคิวเต็ม กรุณาลองใหม่" });
-  } finally {
-    if (lockAcquired) lock.releaseLock();
-  }
-}
-
-// ========================================
-// 4. ลงทะเบียนหัวหน้างานใหม่
-// ========================================
-function registerForeman(data) {
-  const lineUserId = String(data.lineUserId || "").trim();
-  const displayName = String(data.displayName || "").trim();
-  const pictureUrl = String(data.pictureUrl || "").trim();
-  const scannerId = String(data.scannerId || "").trim().toUpperCase();
-  const selfie = data.selfie || "";
-  
-  if (!lineUserId || !scannerId || !selfie) return output({ success: false, message: "ข้อมูลไม่ครบถ้วน" });
-  
-  let selfieUrl = "";
-  try {
-    const base64 = selfie.split(",")[1];
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64), "image/jpeg", "FOREMAN_" + scannerId + "_" + Date.now() + ".jpg");
-    const file = DriveApp.getFolderById(FOLDER_ID).createFile(blob);
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    selfieUrl = "
-https://drive.google.com/uc?id=" + file.getId();
-  } catch(e) {}
-  
-  const lock = LockService.getScriptLock();
-  let lockAcquired = false; 
-  try {
-    lock.waitLock(10000); 
-    lockAcquired = true; 
-    const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName("foreman");
-    sheet.appendRow([lineUserId, displayName, pictureUrl, selfieUrl, scannerId, new Date()]);
-    
-    return output({ success: true, scannerId: scannerId, selfieUrl: selfieUrl });
-  } catch (e) {
-    return output({ success: false, message: "ระบบกำลังทำงาน กรุณากดส่งใหม่อีกครั้ง" });
-  } finally {
-    if (lockAcquired) lock.releaseLock(); 
-  }
-}
-
-// ========================================
-// 5. ตัวแปลงให้ออกเป็น JSON
-// ========================================
-function output(data){ 
-    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); 
-}
-
-ช่วยดูให้หน่อยทำไมมันชอบ Fail ช่วงขั้นตอน JSA 
-
-ผมดูทั้ง Apps Script ที่คุณส่งมา และหน้าเว็บ Scanner แล้วครับ จุดที่ทำให้ Fail ตอนขั้นตอน JSA ค่อนข้างชัด และมีอยู่ 2 จุดหลัก
-
-1. จุดเสี่ยงที่สุด: updateJsaStatus() ค้นหา UUID ทั้งชีต
-
-ตอน saveData() คุณจำกัดการค้นหาไว้แค่ 300 แถวล่าสุด ซึ่งเร็วมาก แต่พอถึง JSA คุณกลับใช้:
-
-const values = sheet.getRange(1, 4, sheet.getLastRow(), 1).getValues();
-
-หมายความว่า updateJsaStatus() ต้องดึง UUID ตั้งแต่แถว 1 จนถึงแถวสุดท้ายทั้งหมด ทุกครั้งที่กด JSA
-
-ถ้า Report มีหลายพัน/หลายหมื่นแถว ขั้นตอนนี้จะช้ามาก และอาจทำให้เกิด timeout ได้
-
-นี่สอดคล้องกับหน้าเว็บที่เมื่อ JSA ล้มเหลวจะแสดงว่า:
-
-"บันทึกเวลาสำเร็จ แต่การอัปเดต JSA ขัดข้อง"
-
-เพราะ saveData() สำเร็จไปแล้ว แต่ request รอบที่สองคือ updateJsa ไม่สำเร็จ
-
-2. ปัญหาใหญ่กว่านั้น: คุณกำลังทำ "2 Request" ต่อการสแกน
-
-ลำดับปัจจุบันคือ:
-
-สแกน QR
-   ↓
-saveData()
-   ↓
-บันทึกเวลา + รูป + scannerId + "รอดำเนินการ"
-   ↓
-สำเร็จ
-   ↓
-เปิดหน้า JSA
-   ↓
-กด "ยืนยัน"
-   ↓
-updateJsa()
-   ↓
-ค้นหา UUID ใหม่
-   ↓
-แก้ Column 11
-
-หน้าเว็บของคุณเขียนไว้ชัดเจนว่า saveData ส่ง jsaStatus: "รอดำเนินการ" แล้วจึงเปิดหน้า JSA
-
-ปัญหาคือ Request ที่ 2 มีโอกาสล้มเหลวมากกว่า Request แรก เพราะต้อง:
-
-เปิด Spreadsheet
-getLastRow()
-อ่าน UUID ทั้ง Column D
-วนหา UUID
-เขียน Column K
-
-และทั้งหมดนี้เกิดหลังจากผู้ใช้กดปุ่ม JSA
-
-ผมแนะนำให้แก้แบบนี้
-
-จริง ๆ แล้วจากโครงสร้างระบบของคุณ ผมคิดว่า ไม่ควรค้นหา UUID ใหม่ใน updateJsaStatus() เลย
-
-เพราะตอน saveData() คุณรู้ actualRow อยู่แล้ว
-
-ตรงนี้:
-
-const actualRow = startRow + i;
-
-คุณสามารถส่ง row กลับไปให้หน้าเว็บได้เลย
-
-เช่น:
-
-updated.push({
-  uuid: uuid,
-  row: actualRow
-});
-
-แล้วหน้าเว็บเก็บ row เอาไว้
-
-จากนั้นตอนกด JSA ส่ง:
-
-{
-    action: "updateJsa",
-    row: scannedRow,
-    jsaStatus: jsaText
-}
-
-ฝั่ง Apps Script ก็ไม่ต้องค้น UUID อีกแล้ว
-
-sheet.getRange(row, 11).setValue(jsaStatus);
-ผลที่ได้
-
-จากเดิม:
-
-JSA
- ↓
-เปิด Sheet
- ↓
-อ่านทั้ง Sheet
- ↓
-ค้นหา UUID
- ↓
-เขียน
-
-เปลี่ยนเป็น:
-
-JSA
- ↓
-เปิด Sheet
- ↓
-เขียน Column K ตรงแถว
-
-เร็วขึ้นและลดจุด Fail ได้เยอะมาก
-
-แต่ผมแนะนำอีกขั้นหนึ่ง
-
-ถ้าคุณต้องการให้ระบบนี้ เสถียรมากที่สุด ผมแนะนำให้เปลี่ยนสถาปัตยกรรมเป็น:
-
-สแกน QR
-   ↓
-บันทึกข้อมูล
-   ↓
-บันทึก JSA = "รอดำเนินการ"
-   ↓
-ส่ง row กลับ
-   ↓
-หน้า JSA
-   ↓
-กดปุ่ม
-   ↓
-updateJsa(row)
-   ↓
-แก้ Column K โดยตรง
-
-ไม่ต้องใช้ UUID เป็นตัวค้นหาอีกแล้ว
-
-อีกจุดที่ผมพบ
-
-ใน saveData() คุณมี:
-
-sheet.getRange(actualRow, 6, 1, 3).setValues([
-    [new Date(), imageUrl, scannerId]
-]);
-
-คือเขียน F:H พร้อมกัน
-
-แล้ว:
-
-if (jsaStatus !== "") {
-    sheet.getRange(actualRow, 11).setValue(jsaStatus); 
-}
-
-ดังนั้นจริง ๆ แล้ว ข้อมูล JSA ถูกสร้างตั้งแต่ตอน saveData อยู่แล้ว
-
-นี่ถือว่าถูกแนวทางครับ เพราะถ้า JSA request ล้ม อย่างน้อยใน Sheet จะยังเห็น:
-
-รอดำเนินการ
-
-ทำให้ Admin สามารถตรวจพบรายการที่ JSA ยังไม่สมบูรณ์ได้
-
-จุดที่ผมอยากให้แก้อีกเรื่อง
-
-ตอนนี้ submitJsa() ใช้:
-
-const response = await fetch(API_URL, {
-
-แต่ autoSaveData() ใช้:
-
-fetchWithTimeout(...)
-
-ดังนั้น JSA ไม่มี Timeout
-
-นี่เป็นอีกสาเหตุที่ทำให้ผู้ใช้รู้สึกว่า "Fail" หรือหมุนค้างได้
-
-ผมแนะนำให้เปลี่ยนเป็น:
-
-const response = await fetchWithTimeout(API_URL, {
-
-และกำหนดประมาณ:
-
-timeout: 10000
-
-จะดีกว่า
-
-สรุปสาเหตุที่ผมมองว่าเป็นตัวการหลัก
-จุด	ปัญหา	ความเสี่ยง
-saveData()	อ่านแค่ 300 แถว	🟢 ดี
-saveData()	ใช้ Lock 15 วินาที	🟡
-updateJsaStatus()	อ่าน UUID ทั้ง Sheet	🔴 สูง
-updateJsaStatus()	ค้นหา UUID ใหม่	🔴 ไม่จำเป็น
-submitJsa()	ไม่มี Timeout	🔴
-ระบบ JSA	ใช้ Request ที่ 2	🟠
-jsaStatus	เริ่มต้นเป็น รอดำเนินการ	🟢 ดี
-
-ดังนั้นผมไม่คิดว่าปัญหาหลักอยู่ที่ปุ่ม JSA หรือ isSubmittingJsa ครับ แต่เกิดจาก Backend ของ updateJsaStatus() เป็นหลัก
-
-ถ้าคุณต้องการ ผมสามารถ 
-แก้ Apps Script ชุดนี้ให้ทั้งชุดเลย โดยปรับ saveData + updateJsaStatus + submitJsa ให้เป็นแบบ เร็วขึ้น / ไม่ค้นทั้ง Sheet / มี Timeout / ป้องกันกด JSA ซ้ำ / รองรับคนสแกนพร้อมกันหลายคน แล้ว
-ส่งโค้ดที่เอาไปวางแทนได้เลยครับ
-
-วันนี้ 11:29
-const SS_ID = "19j7lJ1iWaonUbvm10Cr1phaiYxzKNqfacCF625mbcHg"; const FOLDER_ID = "1LqpDIBPozbtz2QKlyQ08KkWK8pthjrTh"; function doGet(e){ try { const action = e.parameter.action; // หน้าสแกนมีแค่การดึงข้อมูลเพื่อเช็คสิทธิ์ if (action === "initScanner") { const scannerLineId = String(e.parameter.scannerLineId || "").trim(); return initScanner(scannerLineId); } return output({ success: false, message: "ไม่พบคำสั่ง GET ที่ระบุ" }); } catch(err) { return output({ success: false, error: err.toString() }); } } function doPost(e){ try { const data = JSON.parse(e.postData.contents); const action = data.action; // หน้าสแกนมีแค่ 3 คำสั่งตอนบันทึกข้อมูล if (action === "saveData") { return saveData(data); } else if (action === "updateJsa") { return updateJsaStatus(data); } else if (action === "registerForeman") { return registerForeman(data); } return output({ success: false, message: "ไม่พบคำสั่ง POST ที่ระบุ" }); } catch(err) { return output({ success: false, error: err.toString() }); } } // ======================================== // 1. เช็คสิทธิ์ก่อนเข้าหน้าสแกน // ======================================== function initScanner(lineUserId) { if (!lineUserId) return output({ allowed: false, message: "ไม่พบ LINE ID" }); const ss = SpreadsheetApp.openById(SS_ID); const listSheet = ss.getSheetByName("List Name"); const listValues = listSheet.getDataRange().getValues(); let allowed = true; let message = ""; for (let i = 1; i < listValues.length; i++) { if (String(listValues[i][3]).trim() === lineUserId) { const role = String(listValues[i][5] || "").trim().toUpperCase(); if (role !== "ADMIN" && role !== "VIP" && role !== "ยกเว้น") { allowed = false; message = "อุปกรณ์นี้เป็นของพนักงาน ไม่อนุญาตให้ใช้เว็บสแกน!"; } break; } } if (!allowed) return output({ allowed: false, message: message }); const fmSheet = ss.getSheetByName("foreman"); let registered = false; let scannerId = ""; if (fmSheet) { const fmData = fmSheet.getDataRange().getValues(); for (let i = 0; i < fmData.length; i++) { if (String(fmData[i][0]).trim() === lineUserId) { registered = true; scannerId = fmData[i][4]; break; } } } return output({ allowed: true, registered: registered, scannerId: scannerId }); } // ======================================== // 2. บันทึกเวลาเข้างาน (ปรับแก้ลดปัญหา Time-out) // ======================================== function saveData(data){ const scannerId = String(data.scannerId || "").trim().toUpperCase(); const uuidList = data.uuidList || []; const selfie = data.selfie || ""; const existingSelfieUrl = data.existingSelfieUrl || ""; const pictureUrl = String(data.pictureUrl || "").trim(); const jsaStatus = String(data.jsaStatus || "").trim(); if(scannerId === "") return output({ success: false, message: "กรุณากรอกรหัสพนักงาน" }); if(uuidList.length === 0) return output({ success: false, message: "ไม่มี UUID" }); // 🌟 ประมวลผลรูปภาพ "ก่อน" เข้าคิว Lock 🌟 // เพราะการเซฟรูปใช้เวลานาน ถ้าไปทำใน Lock จะทำให้คิวคนอื่นติดขัดจนเน็ตหลุด let imageUrl = pictureUrl || existingSelfieUrl; if (imageUrl === "" && selfie !== "") { try { const base64 = selfie.split(",")[1]; const blob = Utilities.newBlob(Utilities.base64Decode(base64), "image/jpeg", "SCAN_" + Date.now() + ".jpg"); const file = DriveApp.getFolderById(FOLDER_ID).createFile(blob); file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); imageUrl = "
-https://drive.google.com/uc?id=" + file.getId(); } catch(e) { // ถ้าเซฟรูปพัง อย่างน้อยให้มี URL เปล่าๆ ไม่ต้องทำให้โปรแกรมหยุดทำงาน imageUrl = "อัปโหลดภาพล้มเหลว"; } } const lock = LockService.getScriptLock(); let lockAcquired = false; try { // ให้เวลารอคิวนานขึ้นนิดนึง (15 วิ) ป้องกันตอนคนสแกนพร้อมกันเยอะจัดๆ lock.waitLock(15000); lockAcquired = true; const ss = SpreadsheetApp.openById(SS_ID); const sheet = ss.getSheetByName("Report"); const lastRow = sheet.getLastRow(); if (lastRow < 2) return output({ success: false, message: "ไม่มีข้อมูลในตาราง" }); // ดึงแค่ข้อมูลล่าสุด 300 แถวก็พอครับ ถ้าตารางมีหมื่นแถวมันจะดึงช้ามาก (สมมติวันนึงสแกนไม่เกิน 300) // ตรงนี้ช่วยเพิ่มความเร็วแบบสุดยอด const startRow = Math.max(2, lastRow - 300); const numRowsToFetch = lastRow - startRow + 1; const values = sheet.getRange(startRow, 1, numRowsToFetch, 11).getValues(); const updated = []; const notFound = []; const expired = []; uuidList.forEach(uuid => { let found = false; const targetUUID = String(uuid || "").trim().toUpperCase(); // ค้นหาจากล่างขึ้นบน for(let i = values.length - 1; i >= 0; i--){ const sheetUUID = String(values[i][3] || "").trim().toUpperCase(); if(sheetUUID === targetUUID){ const createTime = new Date(values[i][4]); if (((new Date() - createTime) / 1000) > 60) { expired.push({ uuid: uuid, name: values[i][1] }); found = true; break; } // คำนวณแถวที่แท้จริงใน Sheet const actualRow = startRow + i; // บันทึกรวดเดียว ลดเวลาโหลด sheet.getRange(actualRow, 6, 1, 3).setValues([[new Date(), imageUrl, scannerId]]); if (jsaStatus !== "") { sheet.getRange(actualRow, 11).setValue(jsaStatus); } updated.push(uuid); found = true; break; } } if(!found) notFound.push(uuid); }); return output({ success: (updated.length > 0), updatedCount: updated.length, updatedList: updated, expiredList: expired, notFound: notFound }); } catch (e) { return output({ success: false, message: "ระบบคิวเต็ม หรือมีข้อผิดพลาด กรุณากดสแกนอีกครั้งครับ" }); } finally { if (lockAcquired) lock.releaseLock(); } } // ======================================== // 3. อัปเดต JSA ตามหลัง (ลบตัวหน่วงเซฟออก) // ======================================== function updateJsaStatus(data) { const uuid = String(data.uuid || "").trim().toUpperCase(); const jsaStatus = String(data.jsaStatus || "").trim(); if (!uuid || !jsaStatus) return output({ success: false, message: "ข้อมูลไม่ครบถ้วน" }); const lock = LockService.getScriptLock(); let lockAcquired = false; try { lock.waitLock(5000); lockAcquired = true; const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName("Report"); const values = sheet.getRange(1, 4, sheet.getLastRow(), 1).getValues(); for (let i = values.length - 1; i >= 1; i--) { const sheetUUID = String(values[i][0] || "").trim().toUpperCase(); if (sheetUUID === uuid) { sheet.getRange(i + 1, 11).setValue(jsaStatus); return output({ success: true, message: "อัปเดต JSA สำเร็จ" }); } } return output({ success: false, message: "ไม่พบข้อมูลสแกนนี้ในระบบ" }); } catch (e) { return output({ success: false, message: "ระบบคิวเต็ม กรุณาลองใหม่" }); } finally { if (lockAcquired) lock.releaseLock(); } } // ======================================== // 4. ลงทะเบียนหัวหน้างานใหม่ // ======================================== function registerForeman(data) { const lineUserId = String(data.lineUserId || "").trim(); const displayName = String(data.displayName || "").trim(); const pictureUrl = String(data.pictureUrl || "").trim(); const scannerId = String(data.scannerId || "").trim().toUpperCase(); const selfie = data.selfie || ""; if (!lineUserId || !scannerId || !selfie) return output({ success: false, message: "ข้อมูลไม่ครบถ้วน" }); let selfieUrl = ""; try { const base64 = selfie.split(",")[1]; const blob = Utilities.newBlob(Utilities.base64Decode(base64), "image/jpeg", "FOREMAN_" + scannerId + "_" + Date.now() + ".jpg"); const file = DriveApp.getFolderById(FOLDER_ID).createFile(blob); file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); selfieUrl = "
-https://drive.google.com/uc?id=" + file.getId(); } catch(e) {} const lock = LockService.getScriptLock(); let lockAcquired = false; try { lock.waitLock(10000); lockAcquired = true; const sheet = SpreadsheetApp.openById(SS_ID).getSheetByName("foreman"); sheet.appendRow([lineUserId, displayName, pictureUrl, selfieUrl, scannerId, new Date()]); return output({ success: true, scannerId: scannerId, selfieUrl: selfieUrl }); } catch (e) { return output({ success: false, message: "ระบบกำลังทำงาน กรุณากดส่งใหม่อีกครั้ง" }); } finally { if (lockAcquired) lock.releaseLock(); } } // ======================================== // 5. ตัวแปลงให้ออกเป็น JSON // ======================================== function output(data){ return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
-
-ช่วยพิพม์ใหม่ให้ฉันหน่อย ฉันจะใช้หัวนี้
-
-ได้ครับ ผมจัดรูปแบบใหม่ให้เป็นระเบียบ อ่านง่าย และ คงโค้ดและ Logic เดิมทั้งหมด ไม่ได้เปลี่ยนการทำงานของระบบครับ
-
-Google Apps Script — QR Scanner Backend
-const SS_ID = "19j7lJ1iWaonUbvm10Cr1phaiYxzKNqfacCF625mbcHg";
-const FOLDER_ID = "1LqpDIBPozbtz2QKlyQ08KkWK8pthjrTh";
-
-// ========================================
-// 1. GET Request
-// ========================================
-function doGet(e) {
-  try {
-    const action = e.parameter.action;
-
-    // หน้าสแกนมีแค่การดึงข้อมูลเพื่อเช็คสิทธิ์
-    if (action === "initScanner") {
-      const scannerLineId = String(e.parameter.scannerLineId || "").trim();
-      return initScanner(scannerLineId);
-    }
-
-    return output({
-      success: false,
-      message: "ไม่พบคำสั่ง GET ที่ระบุ"
-    });
-
-  } catch (err) {
-    return output({
-      success: false,
-      error: err.toString()
-    });
-  }
-}
-
-
-// ========================================
-// 2. POST Request
-// ========================================
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
-
-    // หน้าสแกนมี 3 คำสั่งตอนบันทึกข้อมูล
-    if (action === "saveData") {
-      return saveData(data);
-
-    } else if (action === "updateJsa") {
-      return updateJsaStatus(data);
-
-    } else if (action === "registerForeman") {
-      return registerForeman(data);
-    }
-
-    return output({
-      success: false,
-      message: "ไม่พบคำสั่ง POST ที่ระบุ"
-    });
-
-  } catch (err) {
-    return output({
-      success: false,
-      error: err.toString()
-    });
-  }
-}
-
-
-// ========================================
-// 3. เช็คสิทธิ์ก่อนเข้าหน้าสแกน
-// ========================================
-function initScanner(lineUserId) {
-
-  if (!lineUserId) {
-    return output({
-      allowed: false,
-      message: "ไม่พบ LINE ID"
-    });
-  }
-
-  const ss = SpreadsheetApp.openById(SS_ID);
-
-  // -------------------------------
-  // ตรวจสอบสิทธิ์จาก List Name
-  // -------------------------------
-  const listSheet = ss.getSheetByName("List Name");
-  const listValues = listSheet.getDataRange().getValues();
-
-  let allowed = true;
-  let message = "";
-
-  for (let i = 1; i < listValues.length; i++) {
-
-    if (String(listValues[i][3]).trim() === lineUserId) {
-
-      const role = String(
-        listValues[i][5] || ""
-      ).trim().toUpperCase();
-
-      if (
-        role !== "ADMIN" &&
-        role !== "VIP" &&
-        role !== "ยกเว้น"
-      ) {
-        allowed = false;
-        message = "อุปกรณ์นี้เป็นของพนักงาน ไม่อนุญาตให้ใช้เว็บสแกน!";
-      }
-
-      break;
-    }
-  }
-
-  if (!allowed) {
-    return output({
-      allowed: false,
-      message: message
-    });
-  }
-
-  // -------------------------------
-  // ตรวจสอบหัวหน้างานที่ลงทะเบียน
-  // -------------------------------
-  const fmSheet = ss.getSheetByName("foreman");
-
-  let registered = false;
-  let scannerId = "";
-
-  if (fmSheet) {
-
-    const fmData = fmSheet.getDataRange().getValues();
-
-    for (let i = 0; i < fmData.length; i++) {
-
-      if (String(fmData[i][0]).trim() === lineUserId) {
-
-        registered = true;
-        scannerId = fmData[i][4];
-
-        break;
-      }
-    }
-  }
-
-  return output({
-    allowed: true,
-    registered: registered,
-    scannerId: scannerId
-  });
-}
-
-
-// ========================================
-// 4. บันทึกเวลาเข้างาน
-// ========================================
-function saveData(data) {
-
-  const scannerId = String(
-    data.scannerId || ""
-  ).trim().toUpperCase();
-
-  const uuidList = data.uuidList || [];
-
-  const selfie = data.selfie || "";
-
-  const existingSelfieUrl =
-    data.existingSelfieUrl || "";
-
-  const pictureUrl = String(
-    data.pictureUrl || ""
-  ).trim();
-
-  const jsaStatus = String(
-    data.jsaStatus || ""
-  ).trim();
-
-
-  // -------------------------------
-  // ตรวจสอบข้อมูลเบื้องต้น
-  // -------------------------------
-  if (scannerId === "") {
-    return output({
-      success: false,
-      message: "กรุณากรอกรหัสพนักงาน"
-    });
-  }
-
-  if (uuidList.length === 0) {
-    return output({
-      success: false,
-      message: "ไม่มี UUID"
-    });
-  }
-
-
-  // ========================================
-  // ประมวลผลรูปภาพก่อนเข้าคิว Lock
-  // ========================================
-
-  let imageUrl =
-    pictureUrl || existingSelfieUrl;
-
-  if (imageUrl === "" && selfie !== "") {
-
-    try {
-
-      const base64 = selfie.split(",")[1];
-
-      const blob = Utilities.newBlob(
-        Utilities.base64Decode(base64),
-        "image/jpeg",
-        "SCAN_" + Date.now() + ".jpg"
-      );
-
-      const file = DriveApp
-        .getFolderById(FOLDER_ID)
-        .createFile(blob);
-
-      file.setSharing(
-        DriveApp.Access.ANYONE_WITH_LINK,
-        DriveApp.Permission.VIEW
-      );
-
-      imageUrl =
-        "https://drive.google.com/uc?id=" +
-        file.getId();
-
-    } catch (e) {
-
-      // ถ้าเซฟรูปพัง อย่างน้อยให้ระบบทำงานต่อ
-      imageUrl = "อัปโหลดภาพล้มเหลว";
-    }
-  }
-
-
-  // ========================================
-  // เริ่ม Lock
-  // ========================================
-
-  const lock = LockService.getScriptLock();
-
-  let lockAcquired = false;
-
-  try {
-
-    // รอคิวสูงสุด 15 วินาที
-    lock.waitLock(15000);
-
-    lockAcquired = true;
-
-    const ss = SpreadsheetApp.openById(SS_ID);
-
-    const sheet = ss.getSheetByName("Report");
-
-    const lastRow = sheet.getLastRow();
-
-    if (lastRow < 2) {
-      return output({
-        success: false,
-        message: "ไม่มีข้อมูลในตาราง"
-      });
-    }
-
-
-    // ========================================
-    // อ่านเฉพาะ 300 แถวล่าสุด
-    // ========================================
-
-    const startRow =
-      Math.max(2, lastRow - 300);
-
-    const numRowsToFetch =
-      lastRow - startRow + 1;
-
-    const values =
-      sheet
-        .getRange(
-          startRow,
-          1,
-          numRowsToFetch,
-          11
-        )
-        .getValues();
-
-
-    const updated = [];
-    const notFound = [];
-    const expired = [];
-
-
-    // ========================================
-    // ค้นหา UUID
-    // ========================================
-
-    uuidList.forEach(uuid => {
-
-      let found = false;
-
-      const targetUUID =
-        String(uuid || "")
-          .trim()
-          .toUpperCase();
-
-
-      // ค้นหาจากล่างขึ้นบน
-      for (
-        let i = values.length - 1;
-        i >= 0;
-        i--
-      ) {
-
-        const sheetUUID =
-          String(values[i][3] || "")
-            .trim()
-            .toUpperCase();
-
-
-        if (sheetUUID === targetUUID) {
-
-          const createTime =
-            new Date(values[i][4]);
-
-
-          // QR หมดอายุเกิน 60 วินาที
-          if (
-            ((new Date() - createTime) / 1000) > 60
-          ) {
-
-            expired.push({
-              uuid: uuid,
-              name: values[i][1]
-            });
-
-            found = true;
-            break;
-          }
-
-
-          // คำนวณแถวจริงใน Sheet
-          const actualRow =
-            startRow + i;
-
-
-          // บันทึกข้อมูล F:H
-          sheet
-            .getRange(actualRow, 6, 1, 3)
-            .setValues([
-              [
-                new Date(),
-                imageUrl,
-                scannerId
-              ]
-            ]);
-
-
-          // บันทึก JSA ถ้ามี
-          if (jsaStatus !== "") {
-
-            sheet
-              .getRange(actualRow, 11)
-              .setValue(jsaStatus);
-          }
-
-
-          updated.push(uuid);
-
-          found = true;
-
-          break;
-        }
-      }
-
-
-      if (!found) {
-        notFound.push(uuid);
-      }
-    });
-
-
-    return output({
-      success: updated.length > 0,
-      updatedCount: updated.length,
-      updatedList: updated,
-      expiredList: expired,
-      notFound: notFound
-    });
-
-
-  } catch (e) {
-
-    return output({
-      success: false,
-      message:
-        "ระบบคิวเต็ม หรือมีข้อผิดพลาด กรุณากดสแกนอีกครั้งครับ"
-    });
-
-
-  } finally {
-
-    if (lockAcquired) {
-      lock.releaseLock();
-    }
-  }
-}
-
-
-// ========================================
-// 5. อัปเดต JSA ตามหลัง
-// ========================================
-function updateJsaStatus(data) {
-
-  const uuid =
-    String(data.uuid || "")
-      .trim()
-      .toUpperCase();
-
-  const jsaStatus =
-    String(data.jsaStatus || "")
-      .trim();
-
-
-  if (!uuid || !jsaStatus) {
-
-    return output({
-      success: false,
-      message: "ข้อมูลไม่ครบถ้วน"
-    });
-  }
-
-
-  const lock =
-    LockService.getScriptLock();
-
-  let lockAcquired = false;
-
-
-  try {
-
-    lock.waitLock(5000);
-
-    lockAcquired = true;
-
-
-    const sheet =
-      SpreadsheetApp
-        .openById(SS_ID)
-        .getSheetByName("Report");
-
-
-    // อ่าน UUID ทั้งหมดใน Column D
-    const values =
-      sheet
-        .getRange(
-          1,
-          4,
-          sheet.getLastRow(),
-          1
-        )
-        .getValues();
-
-
-    // ค้นหาจากล่างขึ้นบน
-    for (
-      let i = values.length - 1;
-      i >= 1;
-      i--
-    ) {
-
-      const sheetUUID =
-        String(values[i][0] || "")
-          .trim()
-          .toUpperCase();
-
-
-      if (sheetUUID === uuid) {
-
-        sheet
-          .getRange(i + 1, 11)
-          .setValue(jsaStatus);
-
-
-        return output({
-          success: true,
-          message: "อัปเดต JSA สำเร็จ"
-        });
-      }
-    }
-
-
-    return output({
-      success: false,
-      message: "ไม่พบข้อมูลสแกนนี้ในระบบ"
-    });
-
-
-  } catch (e) {
-
-    return output({
-      success: false,
-      message: "ระบบคิวเต็ม กรุณาลองใหม่"
-    });
-
-
-  } finally {
-
-    if (lockAcquired) {
-      lock.releaseLock();
-    }
-  }
-}
-
-
-// ========================================
-// 6. ลงทะเบียนหัวหน้างานใหม่
-// ========================================
-function registerForeman(data) {
-
-  const lineUserId =
-    String(data.lineUserId || "")
-      .trim();
-
-  const displayName =
-    String(data.displayName || "")
-      .trim();
-
-  const pictureUrl =
-    String(data.pictureUrl || "")
-      .trim();
-
-  const scannerId =
-    String(data.scannerId || "")
-      .trim()
-      .toUpperCase();
-
-  const selfie =
-    data.selfie || "";
-
-
-  if (
-    !lineUserId ||
-    !scannerId ||
-    !selfie
-  ) {
-
-    return output({
-      success: false,
-      message: "ข้อมูลไม่ครบถ้วน"
-    });
-  }
-
-
-  // ========================================
-  // บันทึกรูปหัวหน้างาน
-  // ========================================
-
-  let selfieUrl = "";
-
-  try {
-
-    const base64 =
-      selfie.split(",")[1];
-
-    const blob =
-      Utilities.newBlob(
-        Utilities.base64Decode(base64),
-        "image/jpeg",
-        "FOREMAN_" +
-        scannerId +
-        "_" +
-        Date.now() +
-        ".jpg"
-      );
-
-
-    const file =
-      DriveApp
-        .getFolderById(FOLDER_ID)
-        .createFile(blob);
-
-
-    file.setSharing(
-      DriveApp.Access.ANYONE_WITH_LINK,
-      DriveApp.Permission.VIEW
-    );
-
-
-    selfieUrl =
-      "https://drive.google.com/uc?id=" +
-      file.getId();
-
-
-  } catch (e) {
-    // หากบันทึกรูปไม่สำเร็จ จะยังดำเนินการต่อ
-  }
-
-
-  // ========================================
-  // บันทึกข้อมูลหัวหน้างาน
-  // ========================================
-
-  const lock =
-    LockService.getScriptLock();
-
-  let lockAcquired = false;
-
-
-  try {
-
-    lock.waitLock(10000);
-
-    lockAcquired = true;
-
-
-    const sheet =
-      SpreadsheetApp
-        .openById(SS_ID)
-        .getSheetByName("foreman");
-
-
-    sheet.appendRow([
-      lineUserId,
-      displayName,
-      pictureUrl,
-      selfieUrl,
-      scannerId,
-      new Date()
-    ]);
-
-
-    return output({
-      success: true,
-      scannerId: scannerId,
-      selfieUrl: selfieUrl
-    });
-
-
-  } catch (e) {
-
-    return output({
-      success: false,
-      message:
-        "ระบบกำลังทำงาน กรุณากดส่งใหม่อีกครั้ง"
-    });
-
-
-  } finally {
-
-    if (lockAcquired) {
-      lock.releaseLock();
-    }
-  }
-}
-
-
-// ========================================
-// 7. ตัวแปลงให้ออกเป็น JSON
-// ========================================
-function output(data) {
-
-  return ContentService
-    .createTextOutput(
-      JSON.stringify(data)
-    )
-    .setMimeType(
-      ContentService.MimeType.JSON
-    );
-}
-
-หมายเหตุ: โค้ดด้านบนเป็นการจัดรูปแบบจากโค้ดที่คุณส่งมา ยังไม่ได้แก้ปัญหา JSA ที่เราคุยกันก่อนหน้านี้นะครับ โดยเฉพาะ updateJsaStatus() ที่ยังอ่าน UUID ทั้ง Column D อยู่
-
-ถ้าคุณจะเอา ตัวนี้เป็นหัวใหม่ แล้วให้ผมแก้เฉพาะปัญหา JSA ผมแนะนำให้แก้ต่อจากโค้ดนี้โดยตรง จะได้ไม่กระทบส่วนอื่นของระบบครับ
-
 <!DOCTYPE html>
-
-<html lang="th"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"> <title>BUS QR Scener</title> <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-<style>
-    :root {
-        --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; 
-        --primary: #60a5fa; --primary-hover: #93c5fd; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
-    }
-    * { box-sizing: border-box; font-family: 'Prompt', sans-serif; -webkit-user-select: none; user-select: none; }
-    body { margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: -webkit-fill-available; flex-direction: column; overflow: hidden; padding: 20px;}
-    html { height: -webkit-fill-available; }
-
-    .container { text-align: center; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1;}
-    .icon-large { font-size: 70px; margin-bottom: 25px; }
-    .spin { animation: spin 1.5s linear infinite; }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>BUS QR Scener</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     
-    h1 { font-size: 26px; margin: 0 0 12px 0; color: white; font-weight: 700; letter-spacing: -0.5px;}
-    p { color: var(--muted); font-size: 16px; margin: 0 0 25px 0; line-height: 1.6; }
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
     
-    .register-card { background: var(--card); border-radius: 28px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center; display: none; width: 100%; max-width: 360px; border: 1px solid #334155;}
-    
-    .input-group { margin-bottom: 20px; text-align: left; }
-    .input-group label { display: block; color: var(--muted); font-size: 14px; margin-bottom: 10px; font-weight: 600; }
-    input[type="text"] { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #0f172a; color: white; font-size: 16px; outline: none; border: 1px solid #334155; text-align: center; font-weight: 700; letter-spacing: 1px;}
-    input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2); }
-    
-    button { width: 100%; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s;}
-    button:active { transform: scale(0.98); }
-    .btn-primary { background: var(--primary); color: white; }
-    
-    .video-container { 
-        width: 100%; 
-        aspect-ratio: 1; 
-        border-radius: 24px; 
-        overflow: hidden; 
-        background: #0f172a; 
-        margin-bottom: 15px; 
-        display: none; 
-        position: relative; 
-        border: 3px solid #334155;
-        transition: border-color 0.3s;
-    }
-    
-    /* วิดีโอและ Canvas สำหรับวาดกรอบ AI */
-    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-    canvas { z-index: 5; pointer-events: none; }
-    
-    .face-svg-overlay {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 85%; height: 85%; pointer-events: none; z-index: 10;
-    }
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    .laser-line { animation: scanLaser 1.5s infinite alternate ease-in-out; }
-    @keyframes scanLaser {
-        0% { transform: translateY(-3px); }
-        100% { transform: translateY(3px); }
-    }
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; 
+            --primary: #60a5fa; --primary-hover: #93c5fd; --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+        }
+        * { box-sizing: border-box; font-family: 'Prompt', sans-serif; -webkit-user-select: none; user-select: none; }
+        body { margin: 0; background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: -webkit-fill-available; flex-direction: column; overflow: hidden; padding: 20px;}
+        html { height: -webkit-fill-available; }
 
-    .flash-effect {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: white; opacity: 0; z-index: 20; pointer-events: none;
-    }
-    .flash-active { animation: flashAnim 0.6s ease-out; }
-    @keyframes flashAnim {
-        0% { opacity: 1; }
-        100% { opacity: 0; }
-    }
+        .container { text-align: center; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1;}
+        .icon-large { font-size: 70px; margin-bottom: 25px; }
+        .spin { animation: spin 1.5s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        h1 { font-size: 26px; margin: 0 0 12px 0; color: white; font-weight: 700; letter-spacing: -0.5px;}
+        p { color: var(--muted); font-size: 16px; margin: 0 0 25px 0; line-height: 1.6; }
+        
+        .register-card { background: var(--card); border-radius: 28px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center; display: none; width: 100%; max-width: 360px; border: 1px solid #334155;}
+        
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; color: var(--muted); font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+        input[type="text"] { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #0f172a; color: white; font-size: 16px; outline: none; border: 1px solid #334155; text-align: center; font-weight: 700; letter-spacing: 1px;}
+        input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2); }
+        
+        button { width: 100%; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s;}
+        button:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: white; }
+        
+        .video-container { 
+            width: 100%; 
+            aspect-ratio: 1; 
+            border-radius: 24px; 
+            overflow: hidden; 
+            background: #0f172a; 
+            margin-bottom: 15px; 
+            display: none; 
+            position: relative; 
+            border: 3px solid #334155;
+            transition: border-color 0.3s;
+        }
+        
+        /* วิดีโอและ Canvas สำหรับวาดกรอบ AI */
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        canvas { z-index: 5; pointer-events: none; }
+        
+        .face-svg-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; height: 85%; pointer-events: none; z-index: 10;
+        }
 
-    #scanStatusText {
-        font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 10px; display: none;
-    }
-</style>
+        .laser-line { animation: scanLaser 1.5s infinite alternate ease-in-out; }
+        @keyframes scanLaser {
+            0% { transform: translateY(-3px); }
+            100% { transform: translateY(3px); }
+        }
 
+        .flash-effect {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: white; opacity: 0; z-index: 20; pointer-events: none;
+        }
+        .flash-active { animation: flashAnim 0.6s ease-out; }
+        @keyframes flashAnim {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        #scanStatusText {
+            font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 10px; display: none;
+        }
+    </style>
 </head>
 
 <body>
 
-<div id="loadingScreen" class="container"> <i class="fa-solid fa-face-viewfinder icon-large spin" style="color: var(--primary);"></i> <h1 id="loadingTitle">กำลังประมวลผล...</h1> <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูล</p> </div>
+<div id="loadingScreen" class="container">
+    <i class="fa-solid fa-face-viewfinder icon-large spin" style="color: var(--primary);"></i>
+    <h1 id="loadingTitle">กำลังประมวลผล...</h1>
+    <p id="loadingDesc">กรุณารอสักครู่ ระบบกำลังตรวจสอบข้อมูล</p>
+</div>
 
 <!-- 🌟 ส่วนหน้าจอให้กดเลือก JSA 🌟 -->
-
-<div id="jsaScreen" class="register-card" style="display: none;"> <i class="fa-solid fa-clipboard-list icon-large" style="color: var(--warning); font-size: 60px;"></i> <h1 style="font-size: 22px; font-weight: 800; color: white;">การชี้แจง JSA</h1> <p style="font-size: 14px; color: var(--muted); margin-bottom: 25px;"> คุณได้ชี้แจง JSA ให้ผู้ปฏิบัติงานรับทราบก่อนเริ่มงานแล้วหรือไม่? </p>
-
-<button class="btn-primary" style="background: var(--success); margin-bottom: 12px; height: 55px;" onclick="submitJsa('ยืนยันว่าได้ชี้แจงแล้ว')">
-    <i class="fa-solid fa-check-double"></i> ยืนยันว่าได้ชี้แจงแล้ว
-</button>
-
-<button class="btn-primary" style="background: var(--danger); height: 55px;" onclick="submitJsa('ยังไม่ได้ชี้แจง')">
-    <i class="fa-solid fa-xmark"></i> ยังไม่ได้ชี้แจง
-</button>
-
-</div>
-
-<div id="registerScreen" class="register-card"> <h1 style="font-size: 22px; font-weight: 800; color: var(--primary);">AI Face Verification</h1>
-
-<div style="margin-bottom: 20px;">
-    <p style="font-size: 13.5px; margin: 0 0 12px 0; color: var(--text);">
-        ระบบจะจับภาพอัตโนมัติเมื่อพบใบหน้า<br>เพื่อใช้ในการยืนยันตัวตนผู้เข้าใช้งาน
+<div id="jsaScreen" class="register-card" style="display: none;">
+    <i class="fa-solid fa-clipboard-list icon-large" style="color: var(--warning); font-size: 60px;"></i>
+    <h1 style="font-size: 22px; font-weight: 800; color: white;">การชี้แจง JSA</h1>
+    <p style="font-size: 14px; color: var(--muted); margin-bottom: 25px;">
+        คุณได้ชี้แจง JSA ให้ผู้ปฏิบัติงานรับทราบก่อนเริ่มงานแล้วหรือไม่?
     </p>
     
-    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 10px; text-align: left;">
-        <p style="font-size: 11.5px; margin: 0; color: var(--success); line-height: 1.5;">
-            <i class="fa-solid fa-shield-halved"></i> <b>Data Privacy:</b> ภาพถ่ายจะถูกเก็บเป็นความลับบริษัทเพื่อใช้ตรวจสอบสิทธิ์โดยแอดมินเท่านั้น (ไม่ถูกนำไปแสดงในหน้ารายงาน)
-        </p>
-    </div>
-</div>
-
-<div class="input-group">
-    <input type="text" id="empIdInput" placeholder="รหัสพนักงาน (เช่น S0123)" autocomplete="off" inputmode="text">
-</div>
-
-<div id="cameraArea" class="video-container">
-    <video id="selfieVideo" playsinline autoplay muted></video>
-    <canvas id="overlayCanvas"></canvas>
-    <div class="flash-effect" id="flashScreen"></div>
+    <button class="btn-primary" style="background: var(--success); margin-bottom: 12px; height: 55px;" onclick="submitJsa('ยืนยันว่าได้ชี้แจงแล้ว')">
+        <i class="fa-solid fa-check-double"></i> ยืนยันว่าได้ชี้แจงแล้ว
+    </button>
     
-    <svg class="face-svg-overlay" 
-         xmlns="http://www.w3.org/2000/svg" 
-         viewBox="0 0 24 24" 
-         fill="none" 
-         stroke="rgba(255,255,255,0.5)" 
-         stroke-width="0.8" 
-         stroke-linecap="round" 
-         stroke-linejoin="round">
-        
-        <path d="M4 9V6a2 2 0 0 1 2-2h3 M20 9V6a2 2 0 0 0-2-2h-3 M4 15v3a2 2 0 0 0 2 2h3 M20 15v3a2 2 0 0 1-2 2h-3" stroke="var(--primary)" stroke-width="1.2" />
-        <path d="M15.5 9a3.5 4.5 0 1 1-7 0 3.5 4.5 0 0 1 7 0z" />
-        <path d="M4.5 21.5c.5-3.5 3-6.5 7.5-6.5h0c4.5 0 7 3 7.5 6.5" />
-        
-        <line class="laser-line" x1="3" y1="12" x2="21" y2="12" stroke="#10b981" stroke-width="0.8" stroke-dasharray="0.5 2" />
-    </svg>
+    <button class="btn-primary" style="background: var(--danger); height: 55px;" onclick="submitJsa('ยังไม่ได้ชี้แจง')">
+        <i class="fa-solid fa-xmark"></i> ยังไม่ได้ชี้แจง
+    </button>
 </div>
 
-<div id="scanStatusText">กรุณาจัดใบหน้าให้อยู่ในกรอบ...</div>
+<div id="registerScreen" class="register-card">
+    <h1 style="font-size: 22px; font-weight: 800; color: var(--primary);">AI Face Verification</h1>
+    
+    <div style="margin-bottom: 20px;">
+        <p style="font-size: 13.5px; margin: 0 0 12px 0; color: var(--text);">
+            ระบบจะจับภาพอัตโนมัติเมื่อพบใบหน้า<br>เพื่อใช้ในการยืนยันตัวตนผู้เข้าใช้งาน
+        </p>
+        
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 10px; text-align: left;">
+            <p style="font-size: 11.5px; margin: 0; color: var(--success); line-height: 1.5;">
+                <i class="fa-solid fa-shield-halved"></i> <b>Data Privacy:</b> ภาพถ่ายจะถูกเก็บเป็นความลับบริษัทเพื่อใช้ตรวจสอบสิทธิ์โดยแอดมินเท่านั้น (ไม่ถูกนำไปแสดงในหน้ารายงาน)
+            </p>
+        </div>
+    </div>
+    
+    <div class="input-group">
+        <input type="text" id="empIdInput" placeholder="รหัสพนักงาน (เช่น S0123)" autocomplete="off" inputmode="text">
+    </div>
 
-<button id="startCamBtn" class="btn-primary" onclick="startCameraSequence()">
-    <i class="fa-solid fa-camera"></i> เปิดกล้องสแกนใบหน้า
-</button>
+    <div id="cameraArea" class="video-container">
+        <video id="selfieVideo" playsinline autoplay muted></video>
+        <canvas id="overlayCanvas"></canvas>
+        <div class="flash-effect" id="flashScreen"></div>
+        
+        <svg class="face-svg-overlay" 
+             xmlns="http://www.w3.org/2000/svg" 
+             viewBox="0 0 24 24" 
+             fill="none" 
+             stroke="rgba(255,255,255,0.5)" 
+             stroke-width="0.8" 
+             stroke-linecap="round" 
+             stroke-linejoin="round">
+            
+            <path d="M4 9V6a2 2 0 0 1 2-2h3 M20 9V6a2 2 0 0 0-2-2h-3 M4 15v3a2 2 0 0 0 2 2h3 M20 15v3a2 2 0 0 1-2 2h-3" stroke="var(--primary)" stroke-width="1.2" />
+            <path d="M15.5 9a3.5 4.5 0 1 1-7 0 3.5 4.5 0 0 1 7 0z" />
+            <path d="M4.5 21.5c.5-3.5 3-6.5 7.5-6.5h0c4.5 0 7 3 7.5 6.5" />
+            
+            <line class="laser-line" x1="3" y1="12" x2="21" y2="12" stroke="#10b981" stroke-width="0.8" stroke-dasharray="0.5 2" />
+        </svg>
+    </div>
+    
+    <div id="scanStatusText">กรุณาจัดใบหน้าให้อยู่ในกรอบ...</div>
 
+    <button id="startCamBtn" class="btn-primary" onclick="startCameraSequence()">
+        <i class="fa-solid fa-camera"></i> เปิดกล้องสแกนใบหน้า
+    </button>
 </div>
 
-<div id="resultScreen" class="container" style="display: none;"> <i id="resultIcon" class="fa-solid fa-circle-check icon-large" style="color: var(--success);"></i> <h1 id="resultTitle">บันทึกข้อมูลสำเร็จ</h1> <p id="resultDesc">หน้าต่างจะปิดอัตโนมัติ...</p> </div>
+<div id="resultScreen" class="container" style="display: none;">
+    <i id="resultIcon" class="fa-solid fa-circle-check icon-large" style="color: var(--success);"></i>
+    <h1 id="resultTitle">บันทึกข้อมูลสำเร็จ</h1>
+    <p id="resultDesc">หน้าต่างจะปิดอัตโนมัติ...</p>
+</div>
 
-<script> const LIFF_ID = "2007956727-gZOxrA26"; const API_URL = "https://script.google.com/macros/s/AKfycbxfqpXHio-KProP4lrZAeszbvwTQfWofoLLuJ3pcgUBGMjmMDUhGTgh_yVO9DtLoBo/exec"; const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/"; let scannedUUID = ""; let lineProfile = null; let videoStream = null; let faceDetectionInterval = null; let isSubmittingJsa = false; window.onload = async () => { try { await liff.init({ liffId: LIFF_ID }); if (!liff.isLoggedIn()) { liff.login(); return; } const urlParams = new URLSearchParams(window.location.search); scannedUUID = urlParams.get('id'); if (!scannedUUID) { showResult("เกิดข้อผิดพลาด", "ไม่พบข้อมูล QR Code กรุณาสแกนใหม่", "error"); return; } lineProfile = await liff.getProfile(); updateLoading("กำลังตรวจสอบสิทธิ์..."); const res = await fetch(`${API_URL}?action=initScanner&scannerLineId=${lineProfile.userId}&t=${Date.now()}`); const data = await res.json(); if (data.allowed === false) { showResult("การเข้าถึงถูกปฏิเสธ", data.message, "error"); return; } if (data.registered === true) { updateLoading("กำลังบันทึกเวลาเข้างาน..."); await autoSaveData(data.scannerId, false, "รอดำเนินการ"); } else { document.getElementById('loadingScreen').style.display = 'none'; document.getElementById('registerScreen').style.display = 'block'; } } catch (error) { showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", "error"); } }; async function startCameraSequence() { const empId = document.getElementById('empIdInput').value.trim().toUpperCase(); if (!empId) return alert("กรุณากรอกรหัสพนักงานให้เรียบร้อยก่อนเปิดกล้องครับ"); try { document.getElementById('startCamBtn').style.display = 'none'; document.getElementById('empIdInput').disabled = true; document.getElementById('cameraArea').style.display = 'block'; const statusText = document.getElementById('scanStatusText'); statusText.style.display = 'block'; statusText.innerText = "กำลังดาวน์โหลด AI Model (รอสักครู่)..."; statusText.style.color = "var(--warning)"; await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL); const video = document.getElementById('selfieVideo'); videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } }); video.srcObject = videoStream; statusText.innerText = "AI กำลังวิเคราะห์โครงหน้า..."; statusText.style.color = "var(--primary)"; video.addEventListener('play', () => { const canvas = document.getElementById('overlayCanvas'); const displaySize = { width: video.videoWidth || 300, height: video.videoHeight || 300 }; faceapi.matchDimensions(canvas, displaySize); let faceFoundCount = 0; faceDetectionInterval = setInterval(async () => { const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.6 })); const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); if (detection) { faceFoundCount++; if (faceFoundCount >= 3) { clearInterval(faceDetectionInterval); statusText.innerText = "AI ยืนยันใบหน้าสำเร็จ!"; statusText.style.color = "var(--success)"; document.getElementById('cameraArea').style.borderColor = "var(--success)"; document.getElementById('flashScreen').classList.add('flash-active'); setTimeout(() => { executeCapture(empId); }, 400); } } else { faceFoundCount = 0; document.getElementById('cameraArea').style.borderColor = "var(--danger)"; } }, 300); }); } catch (err) { console.error(err); alert("เกิดข้อผิดพลาดในการเปิดกล้อง หรือโหลด AI ไม่สำเร็จ"); } } async function executeCapture(empId) { updateLoading("กำลังประมวลผลใบหน้า..."); const video = document.getElementById('selfieVideo'); const canvas = document.createElement("canvas"); const size = Math.min(video.videoWidth, video.videoHeight); canvas.width = size; canvas.height = size; canvas.getContext("2d").drawImage( video, (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 0, 0, size, size ); // เปลี่ยนบรรทัดนี้เพื่อลดขนาดภาพลงให้ส่งไวสุดๆ (จาก 0.5 เป็น 0.3) const selfieBase64 = canvas.toDataURL("image/jpeg", 0.3); videoStream.getTracks().forEach(track => track.stop()); document.getElementById('registerScreen').style.display = 'none'; document.getElementById('loadingScreen').style.display = 'flex'; updateLoading("กำลังบันทึกข้อมูลใบหน้าลงระบบ..."); const regRes = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "registerForeman", lineUserId: lineProfile.userId, displayName: lineProfile.displayName, pictureUrl: lineProfile.pictureUrl, scannerId: empId, selfie: selfieBase64 }) }); const regData = await regRes.json(); if (regData.success) { updateLoading("กำลังบันทึกเวลาเข้างาน..."); await autoSaveData(empId, true, "รอดำเนินการ"); } else { showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error"); } } // เพิ่มฟังก์ชันช่วยสำหรับ fetch แบบมีเวลากำหนด (Timeout) ไม่ให้หมุนค้าง async function fetchWithTimeout(resource, options = {}) { const { timeout = 12000 } = options; // ตั้งเวลาตัดจบที่ 12 วินาที const controller = new AbortController(); const id = setTimeout(() => controller.abort(), timeout); const response = await fetch(resource, { ...options, signal: controller.signal }); clearTimeout(id); return response; } // อัปเดตฟังก์ชัน autoSaveData ให้ใช้ fetchWithTimeout แทน fetch เดิม async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "รอดำเนินการ") { try { const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : ""; // 🌟 เปลี่ยนมาใช้ตัวนี้ ป้องกันการหมุนค้างตลอดกาล 🌟 const response = await fetchWithTimeout(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "saveData", uuidList: [scannedUUID], scannerId: scannerId, pictureUrl: picUrl, jsaStatus: jsaStatus }), timeout: 15000 // ให้เวลา 15 วินาที ถ้าไม่ตอบกลับคือเน็ตหลุด แจ้งเตือนเลย }); const rawText = await response.text(); let result; try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); } if (result.expiredList && result.expiredList.length > 0) { showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลาแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error"); setTimeout(() => closeApp(), 3000); } else if (result.notFound && result.notFound.length > 0) { showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error"); setTimeout(() => closeApp(), 3000); } else if (result.success) { showJsaScreen(); } else { showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", "error"); setTimeout(() => closeApp(), 3000); } } catch (err) { if (err.name === 'AbortError') { // ดักจับกรณีเน็ตช้าจน Timeout showResult("สถานะไม่แน่ชัด", "อินเทอร์เน็ตช้าเกินไป ข้อมูลอาจจะบันทึกแล้ว กรุณาเช็คกับหัวหน้างานอีกครั้งครับ", "warning"); } else { showResult("ข้อผิดพลาด", "ไม่สามารถรับการตอบกลับจากเซิร์ฟเวอร์ได้ แต่ข้อมูลอาจถูกบันทึกแล้ว", "error"); } setTimeout(() => closeApp(), 4500); } } function showJsaScreen() { const currentHour = new Date().getHours(); if (currentHour >= 15) { submitJsa("ข้ามการชี้แจง (หลัง 15:00 น.)"); return; } document.getElementById('loadingScreen').style.display = 'none'; document.getElementById('registerScreen').style.display = 'none'; document.getElementById('jsaScreen').style.display = 'block'; } async function submitJsa(jsaText) { if (isSubmittingJsa) return; isSubmittingJsa = true; document.getElementById('jsaScreen').style.display = 'none'; document.getElementById('loadingScreen').style.display = 'flex'; updateLoading("กำลังอัปเดตผล JSA..."); try { const response = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "updateJsa", uuid: scannedUUID, jsaStatus: jsaText }) }); const rawText = await response.text(); let result; try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); } if (result.success) { showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success"); } else { showResult("เกิดข้อผิดพลาด", result.message, "error"); } setTimeout(() => closeApp(), 2500); } catch (err) { showResult("ข้อผิดพลาด", "บันทึกเวลาสำเร็จ แต่การอัปเดต JSA ขัดข้อง", "error"); setTimeout(() => closeApp(), 3500); } } function updateLoading(text) { document.getElementById('loadingTitle').innerText = text; document.getElementById('loadingDesc').innerText = "กรุณารอสักครู่ ห้ามปิดหน้าต่างนี้"; } function showResult(title, desc, status) { document.getElementById('loadingScreen').style.display = 'none'; document.getElementById('registerScreen').style.display = 'none'; document.getElementById('jsaScreen').style.display = 'none'; const resultScreen = document.getElementById('resultScreen'); document.getElementById('resultTitle').innerText = title; document.getElementById('resultDesc').innerHTML = desc; const icon = document.getElementById('resultIcon'); if (status === "success") { icon.className = "fa-solid fa-circle-check icon-large"; icon.style.color = "var(--success)"; } else if (status === "warning") { icon.className = "fa-solid fa-triangle-exclamation icon-large"; icon.style.color = "var(--warning)"; } else { icon.className = "fa-solid fa-circle-xmark icon-large"; icon.style.color = "var(--danger)"; } resultScreen.style.display = 'flex'; } function closeApp() { if (typeof liff !== 'undefined' && liff.isInClient()) { liff.closeWindow(); } else { window.close(); } } </script>
+<script>
+    const LIFF_ID = "2007956727-gZOxrA26"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbxfqpXHio-KProP4lrZAeszbvwTQfWofoLLuJ3pcgUBGMjmMDUhGTgh_yVO9DtLoBo/exec";
+    const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
+    
+    let scannedUUID = "";
+    let lineProfile = null;
+    let videoStream = null;
+    let faceDetectionInterval = null;
+    let isSubmittingJsa = false; 
 
-</body> 
+    window.onload = async () => { 
+        try {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            scannedUUID = urlParams.get('id');
+
+            if (!scannedUUID) {
+                showResult("เกิดข้อผิดพลาด", "ไม่พบข้อมูล QR Code กรุณาสแกนใหม่", "error");
+                return;
+            }
+
+            lineProfile = await liff.getProfile();
+            updateLoading("กำลังตรวจสอบสิทธิ์...");
+            
+            const res = await fetch(`${API_URL}?action=initScanner&scannerLineId=${lineProfile.userId}&t=${Date.now()}`);
+            const data = await res.json();
+
+            if (data.allowed === false) {
+                showResult("การเข้าถึงถูกปฏิเสธ", data.message, "error");
+                return;
+            }
+
+            if (data.registered === true) {
+                updateLoading("กำลังบันทึกเวลาเข้างาน...");
+                await autoSaveData(data.scannerId, false, "รอดำเนินการ");
+            } else {
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('registerScreen').style.display = 'block';
+            }
+        } catch (error) {
+            showResult("ข้อผิดพลาดระบบ", "ไม่สามารถเชื่อมต่อได้ กรุณาลองใหม่", "error");
+        }
+    };
+
+    async function startCameraSequence() {
+        const empId = document.getElementById('empIdInput').value.trim().toUpperCase();
+        if (!empId) return alert("กรุณากรอกรหัสพนักงานให้เรียบร้อยก่อนเปิดกล้องครับ");
+
+        try {
+            document.getElementById('startCamBtn').style.display = 'none';
+            document.getElementById('empIdInput').disabled = true;
+            document.getElementById('cameraArea').style.display = 'block';
+            
+            const statusText = document.getElementById('scanStatusText');
+            statusText.style.display = 'block';
+            statusText.innerText = "กำลังดาวน์โหลด AI Model (รอสักครู่)...";
+            statusText.style.color = "var(--warning)";
+
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+
+            const video = document.getElementById('selfieVideo');
+            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", aspectRatio: 1 } });
+            video.srcObject = videoStream;
+
+            statusText.innerText = "AI กำลังวิเคราะห์โครงหน้า...";
+            statusText.style.color = "var(--primary)";
+
+            video.addEventListener('play', () => {
+                const canvas = document.getElementById('overlayCanvas');
+                const displaySize = { width: video.videoWidth || 300, height: video.videoHeight || 300 };
+                faceapi.matchDimensions(canvas, displaySize);
+
+                let faceFoundCount = 0; 
+
+                faceDetectionInterval = setInterval(async () => {
+                    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.6 }));
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    if (detection) {
+                        faceFoundCount++;
+                        if (faceFoundCount >= 3) {
+                            clearInterval(faceDetectionInterval); 
+                            
+                            statusText.innerText = "AI ยืนยันใบหน้าสำเร็จ!";
+                            statusText.style.color = "var(--success)";
+                            document.getElementById('cameraArea').style.borderColor = "var(--success)";
+                            document.getElementById('flashScreen').classList.add('flash-active');
+                            
+                            setTimeout(() => {
+                                executeCapture(empId);
+                            }, 400); 
+                        }
+                    } else {
+                        faceFoundCount = 0;
+                        document.getElementById('cameraArea').style.borderColor = "var(--danger)";
+                    }
+                }, 300); 
+            });
+        } catch (err) {
+            console.error(err);
+            alert("เกิดข้อผิดพลาดในการเปิดกล้อง หรือโหลด AI ไม่สำเร็จ");
+        }
+    }
+
+    async function executeCapture(empId) {
+        updateLoading("กำลังประมวลผลใบหน้า...");
+        const video = document.getElementById('selfieVideo');
+        const canvas = document.createElement("canvas");
+        const size = Math.min(video.videoWidth, video.videoHeight);
+        canvas.width = size; 
+        canvas.height = size;
+        canvas.getContext("2d").drawImage(
+            video, 
+            (video.videoWidth - size) / 2, (video.videoHeight - size) / 2, size, size, 
+            0, 0, size, size
+        );
+        const selfieBase64 = canvas.toDataURL("image/jpeg", 0.5); 
+        videoStream.getTracks().forEach(track => track.stop());
+
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('loadingScreen').style.display = 'flex';
+        updateLoading("กำลังบันทึกข้อมูลใบหน้าลงระบบ...");
+
+        // 🌟 เติม Headers ตรงนี้ 🌟
+        const regRes = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ 
+                action: "registerForeman", 
+                lineUserId: lineProfile.userId,
+                displayName: lineProfile.displayName,
+                pictureUrl: lineProfile.pictureUrl,
+                scannerId: empId, 
+                selfie: selfieBase64 
+            })
+        });
+        
+        const regData = await regRes.json();
+        if (regData.success) {
+            updateLoading("กำลังบันทึกเวลาเข้างาน...");
+            await autoSaveData(empId, true, "รอดำเนินการ");
+        } else {
+            showResult("ยืนยันใบหน้าล้มเหลว", regData.message, "error");
+        }
+    }
+
+    async function autoSaveData(scannerId, isJustRegistered = false, jsaStatus = "รอดำเนินการ") {
+        try {
+            const picUrl = (lineProfile && lineProfile.pictureUrl) ? lineProfile.pictureUrl : "";
+            
+            // 🌟 เติม Headers ตรงนี้ 🌟
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ 
+                    action: "saveData", 
+                    uuidList: [scannedUUID], 
+                    scannerId: scannerId, 
+                    pictureUrl: picUrl,
+                    jsaStatus: jsaStatus 
+                })
+            });
+            
+            const rawText = await response.text();
+            let result;
+            try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); }
+
+            if (result.expiredList && result.expiredList.length > 0) {
+                showResult("สแกนไม่สำเร็จ", "QR Code นี้หมดเวลาแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                setTimeout(() => closeApp(), 3000);
+            } 
+            else if (result.notFound && result.notFound.length > 0) {
+                showResult("สแกนไม่สำเร็จ", "ไม่พบข้อมูล หรือ QR Code หมดอายุไปนานแล้ว<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                setTimeout(() => closeApp(), 3000);
+            } 
+            else if (result.success) {
+                showJsaScreen(); 
+            } 
+            else {
+                showResult("สแกนไม่สำเร็จ", (result.message || "เกิดข้อผิดพลาดบางอย่าง") + "<br>หน้าต่างจะปิดอัตโนมัติ...", "error");
+                setTimeout(() => closeApp(), 3000);
+            }
+        } catch (err) {
+            showResult("ข้อผิดพลาด", "ไม่สามารถรับการตอบกลับจากเซิร์ฟเวอร์ได้ แต่ข้อมูลอาจถูกบันทึกแล้ว", "error");
+            setTimeout(() => closeApp(), 4000);
+        }
+    }
+
+    function showJsaScreen() {
+        const currentHour = new Date().getHours();
+
+        if (currentHour >= 15) {
+            submitJsa("ข้ามการชี้แจง (หลัง 15:00 น.)");
+            return;
+        }
+        
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('jsaScreen').style.display = 'block';
+    }
+
+    async function submitJsa(jsaText) {
+        if (isSubmittingJsa) return;
+        isSubmittingJsa = true;
+
+        document.getElementById('jsaScreen').style.display = 'none';
+        document.getElementById('loadingScreen').style.display = 'flex';
+        updateLoading("กำลังอัปเดตผล JSA...");
+        
+        try {
+            // 🌟 เติม Headers ตรงนี้ 🌟
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "updateJsa",
+                    uuid: scannedUUID,
+                    jsaStatus: jsaText
+                })
+            });
+
+            const rawText = await response.text();
+            let result;
+            try { result = JSON.parse(rawText); } catch(e) { throw new Error("เซิร์ฟเวอร์ตอบกลับผิดพลาด"); }
+
+            if (result.success) {
+                showResult("บันทึกข้อมูลสำเร็จ", "หน้าต่างจะปิดอัตโนมัติ...", "success");
+            } else {
+                showResult("เกิดข้อผิดพลาด", result.message, "error");
+            }
+            setTimeout(() => closeApp(), 2500);
+
+        } catch (err) {
+            showResult("ข้อผิดพลาด", "บันทึกเวลาสำเร็จ แต่การอัปเดต JSA ขัดข้อง", "error");
+            setTimeout(() => closeApp(), 3500);
+        }
+    }
+
+    function updateLoading(text) {
+        document.getElementById('loadingTitle').innerText = text;
+        document.getElementById('loadingDesc').innerText = "กรุณารอสักครู่ ห้ามปิดหน้าต่างนี้";
+    }
+
+    function showResult(title, desc, status) {
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('registerScreen').style.display = 'none';
+        document.getElementById('jsaScreen').style.display = 'none'; 
+        
+        const resultScreen = document.getElementById('resultScreen');
+        document.getElementById('resultTitle').innerText = title;
+        document.getElementById('resultDesc').innerHTML = desc; 
+        
+        const icon = document.getElementById('resultIcon');
+        if (status === "success") {
+            icon.className = "fa-solid fa-circle-check icon-large";
+            icon.style.color = "var(--success)";
+        } else if (status === "warning") {
+            icon.className = "fa-solid fa-triangle-exclamation icon-large";
+            icon.style.color = "var(--warning)";
+        } else {
+            icon.className = "fa-solid fa-circle-xmark icon-large";
+            icon.style.color = "var(--danger)";
+        }
+        
+        resultScreen.style.display = 'flex'; 
+    }
+
+    function closeApp() {
+        if (typeof liff !== 'undefined' && liff.isInClient()) {
+            liff.closeWindow();
+        } else {
+            window.close();
+        }
+    }
+</script>
+</body>
 </html>
